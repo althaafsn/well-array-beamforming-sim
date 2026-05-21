@@ -1,0 +1,145 @@
+[
+	{
+		"title" : "Oil and Gas Pipeline Segment Permits",
+		"name" : "oil-and-gas-commission-pipeline-segment-permits",
+		"bcdc_data_resource_url" : "https://catalogue.data.gov.bc.ca/dataset/ecf567ea-4901-4f51-a5b0-35959ca96c47",
+		"description" : "Pipeline centre-lines associated with oil and gas pipeline activity and falling within the area representing the pipeline right of way.  This dataset contains line features collected on or after July 11, 2016 for approved pipeline centre-line locations. The dataset is updated nightly.",
+		"purpose" : "",
+		"bcdc_type" : "Geographic",
+		"last_modified" : "2026-05-18T10:18:59",
+		"resource_storage_location" : "Bc Geographic Warehouse",
+		"object_name" : "WHSE_MINERAL_TENURE.OG_PIPELINE_SEGMENT_PERMIT_SP",
+		"object_short_name" : "OG_PL_S_P",
+		"object_table_comments" : "Pipeline centre-lines associated with oil and gas pipeline activity and falling within the area representing the pipeline right of way.  This dataset contains line features collected on or after July 11, 2016 for approved pipeline centre-line locations.",
+		"projection_name" : "epsg3005",
+		"license_title" : "Open Government Licence - British Columbia",
+		"license_url" : "https://www2.gov.bc.ca/gov/content?id=A519A56BC2BF44E4A008B33FCF527F61",
+		"details" : [
+			{
+				"column_comments" : "OG_PIPELINE_SEGMENT_PERMIT_ID is a system generated unique identifier number.",
+				"column_name" : "OG_PIPELINE_SEGMENT_PERMIT_ID",
+				"data_precision" : 10,
+				"data_type" : "NUMBER",
+				"short_name" : "PPL_S_P_ID"
+			},
+			{
+				"column_comments" : "PROJECT_NUMBER is a unique business identifier for a pipeline, e.g., 000021886.",
+				"column_name" : "PROJECT_NUMBER",
+				"data_precision" : 18,
+				"data_type" : "VARCHAR2",
+				"short_name" : "PROJ_NUM"
+			},
+			{
+				"column_comments" : "SEGMENT_NUMBER is a system generated identification number assigned to each pipeline segment within a pipeline area, e.g., 2.",
+				"column_name" : "SEGMENT_NUMBER",
+				"data_precision" : 5,
+				"data_type" : "NUMBER",
+				"short_name" : "SEG_NUM"
+			},
+			{
+				"column_comments" : "LINE_TYPE is a code indicating the type of pipeline, e.g., TR (Transmission).",
+				"column_name" : "LINE_TYPE",
+				"data_precision" : 8,
+				"data_type" : "VARCHAR2",
+				"short_name" : "LINE_TYPE"
+			},
+			{
+				"column_comments" : "LINE_TYPE_DESC is a description of the type of pipeline, e.g., Transmission (TR).",
+				"column_name" : "LINE_TYPE_DESC",
+				"data_precision" : 60,
+				"data_type" : "VARCHAR2",
+				"short_name" : "LINE_DESC"
+			},
+			{
+				"column_comments" : "PHYSICAL_PIPE_LENGTH is the length of the pipeline segment measured in metres.",
+				"column_name" : "PHYSICAL_PIPE_LENGTH",
+				"data_precision" : 38,
+				"data_type" : "NUMBER",
+				"short_name" : "PHYS_LEN_M"
+			},
+			{
+				"column_comments" : "STATUS is the status of the activity during the approval process, e.g., Approved.",
+				"column_name" : "STATUS",
+				"data_precision" : 38,
+				"data_type" : "VARCHAR2",
+				"short_name" : "STATUS"
+			},
+			{
+				"column_comments" : "APPLICATION_DETERMINATION_NUM is a number assigned to an approved or permitted activity or to a set of activities included in a multi-activity application, e.g., 100082189.",
+				"column_name" : "APPLICATION_DETERMINATION_NUM",
+				"data_precision" : 18,
+				"data_type" : "VARCHAR2",
+				"short_name" : "AD_NUM"
+			},
+			{
+				"column_comments" : "ACTIVITY_APPROVAL_DATE is the date the activity was approved by the BC Energy Regulator.",
+				"column_name" : "ACTIVITY_APPROVAL_DATE",
+				"data_precision" : 7,
+				"data_type" : "DATE",
+				"short_name" : "APPRV_DATE"
+			},
+			{
+				"column_comments" : "ACTIVITY_CANCEL_DATE is the date the activity was cancelled by the BC Energy Regulator.",
+				"column_name" : "ACTIVITY_CANCEL_DATE",
+				"data_precision" : 7,
+				"data_type" : "DATE",
+				"short_name" : "CANC_DATE"
+			},
+			{
+				"column_comments" : "LEGACY_OGC_FILE_NUMBER is the legacy BCER file number used for referencing applications submitted prior to July 11, 2016, e.g., 9631141.",
+				"column_name" : "LEGACY_OGC_FILE_NUMBER",
+				"data_precision" : 16,
+				"data_type" : "VARCHAR2",
+				"short_name" : "LEGACY_OGC"
+			},
+			{
+				"column_comments" : "PROPONENT is the organization name of the oil and gas operator, e.g., ARC Resources Ltd.",
+				"column_name" : "PROPONENT",
+				"data_precision" : 120,
+				"data_type" : "VARCHAR2",
+				"short_name" : "PROPONENT"
+			},
+			{
+				"column_comments" : "AUTHORITY_TYPE is the type of authorization issued by the Regulator.  Authorizations are issued either under the Energy Resources Activities Act (ERAA) or the Canada Energy Regulator (CER), e.g., ERAA.",
+				"column_name" : "AUTHORITY_TYPE",
+				"data_precision" : 8,
+				"data_type" : "VARCHAR2",
+				"short_name" : "AUTH_TYPE"
+			},
+			{
+				"column_comments" : "DATA_SOURCE is the data capture method used to collect the spatial application data submitted to the Regulator, i.e., GPSD (GPS-Differential), GPSND (GPS-Non Differential), ORTHO (Ortho Photography), CGWC (Coordinate Geometry With Control), SNK (Source Not Known).",
+				"column_name" : "DATA_SOURCE",
+				"data_precision" : 10,
+				"data_type" : "VARCHAR2",
+				"short_name" : "DATA_SRC"
+			},
+			{
+				"column_comments" : "FEATURE_LENGTH_M is the system calculated length or perimeter of a geometry in meters.",
+				"column_name" : "FEATURE_LENGTH_M",
+				"data_precision" : 19,
+				"data_type" : "NUMBER",
+				"short_name" : "LENGTH_M"
+			},
+			{
+				"column_comments" : "SHAPE is the column used to reference the spatial coordinates defining the feature.",
+				"column_name" : "SHAPE",
+				"data_precision" : 1,
+				"data_type" : "SDO_GEOMETRY",
+				"short_name" : "SHAPE"
+			},
+			{
+				"column_comments" : "OBJECTID is a required attribute of feature classes and object classes in a geodatabase.",
+				"column_name" : "OBJECTID",
+				"data_precision" : 38,
+				"data_type" : "NUMBER",
+				"short_name" : "OBJECTID"
+			},
+			{
+				"column_comments" : "SE_ANNO_CAD_DATA is a binary column used by spatial tools to store annotation, curve features and CAD data when using the SDO_GEOMETRY storage data type.",
+				"column_name" : "SE_ANNO_CAD_DATA",
+				"data_precision" : 4000,
+				"data_type" : "BLOB"
+			}
+		]
+	}
+]

@@ -1,0 +1,41 @@
+pipe:
+  inner_radius_m: 0.1092375
+  wall_thickness_m: 0.013
+  length_m: 0.4
+medium:
+  bore_fluid:
+    rho: 900
+    vp: 1300
+materials:
+  steel:
+    rho: 7850
+    vp: 5778
+transducer:
+  center_freq_hz: 250000
+  bandwidth: 0.7
+scan:
+  z_step_m: 0.01
+  z_start_m: 0.0
+  angle_step_deg: 1.0
+timing:
+  dt_us: 0.5
+  t_end_us: 600.0
+
+# Hand-authored local inner radius: angular bump at 45° (wall recession demo)
+wall_profile:
+  n_theta: 72
+  bump:
+    theta_deg: 45.0
+    width_deg: 30.0
+    delta_m: 0.006
+
+echo:
+  amplitude_exponent: 0.5
+  snr_db: 60.0
+  noise_seed: 42
+
+inference:
+  mode: saft
+  r_min_m: 0.07
+  r_max_m: 0.14
+  r_step_m: 0.0005

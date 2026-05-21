@@ -1,0 +1,39 @@
+# well-array-beamforming-sim — internal pipe ultrasonic simulator (Python)
+#
+# Requires Python >=3.10 (see pyproject.toml).
+#
+# Create and activate a virtual environment:
+#   cd well-array-beamforming-sim
+#   python3 -m venv .venv
+#   source .venv/bin/activate          # Linux/macOS
+#   .venv\Scripts\activate             # Windows
+#   pip install -U pip
+#   pip install -r requirements.txt
+#   pip install -e ".[dev]"
+#
+# Primary workflow (BC segment study):
+#   well-array-sim bc run --permit-id 13 --years 0 --max-length-m 1.2 --max-partitions 3 \
+#     --z-step-m 0.20 --angle-step-deg 90 --no-plots --out outputs/smoke
+#
+# Quick physics demo:
+#   well-array-sim sim --scenario scenarios/internal_pipe_default.yaml --angle-deg 45 --out outputs/demo
+#
+# GUI (needs system tkinter, e.g. apt install python3-tk):
+#   well-array-sim-gui
+#
+# Tests:
+#   pytest -q
+#
+# Docs: README.md (how to use), RELEASE.md (v0.1 benchmarks & schemas)
+
+# --- Core simulation ---
+numpy>=1.24
+scipy>=1.10
+pyyaml>=6.0
+
+# --- Visualization (matplotlib in tkinter GUI + CLI PNG export) ---
+matplotlib>=3.7
+pyarrow>=15.0
+
+# --- Development / testing (also in pyproject [dev]) ---
+pytest>=7.0

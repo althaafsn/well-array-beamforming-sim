@@ -1,0 +1,14 @@
+﻿------------------
+Order Details
+-----------------
+Order ID: 2563506
+Date: 20260518
+
+----------------------
+Feature Types
+-----------------------
+ - Oil and Gas Commission Pipeline Segment Permits in subdirectory OG_PIPELINE_SEGMENT_PERMIT_SP
+
+----------------------------
+Packaged Products
+----------------------------
