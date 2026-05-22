@@ -1,6 +1,6 @@
-# Release v0.1.0
+# Release v0.2.0
 
-**well-array-beamforming-sim** v0.1 — research prototype for internal pipe ultrasonic pulse-echo simulation (2D ray-packet forward model + blind SAFT) with BC pipeline segment studies and partition export for **acoustic-ndt-platform** ingest.
+**well-array-beamforming-sim** v0.2 — research prototype for internal pipe ultrasonic pulse-echo simulation (2D ray-packet forward model + **angular SAFT migration**) with BC pipeline segment studies and partition export for **acoustic-ndt-platform** ingest.
 
 **How to use:** [README.md](README.md)
 
@@ -10,7 +10,8 @@
 
 | Feature | Entry point |
 |---------|-------------|
-| Single-angle / axial ray + SAFT | `well-array-sim sim`, `well-array-sim-gui` |
+| Single-angle / axial pulse-echo | `well-array-sim sim`, `well-array-sim-gui` |
+| **Angular SAFT** (360° sweep migration) | default `inference.mode: angular_saft` in scenarios / `bc run` |
 | Corrosion time evolution | scenarios with `corrosion:` block |
 | BC segment browse / scenario build | `well-array-sim bc list|show|scenario` |
 | Multi-year partition study + plots | `well-array-sim bc run` |
@@ -49,7 +50,7 @@ well-array-sim export-partition \
 
 ## Runtime reference
 
-**Per bundle cost** = one `(partition, year)` export. Each 0.4 m partition at default grid runs **41 axial × 360 azimuth ≈ 14,760** ray+SAFT shots and always writes waveforms.
+**Per bundle cost** = one `(partition, year)` export. Each 0.4 m partition at default grid runs **41 axial × 360 azimuth ≈ 14,760** ray forward shots plus **angular SAFT migration** per axial station (41 focus passes) and always writes waveforms.
 
 | Grid | Shots / partition | Time / bundle |
 |------|-------------------|---------------|
@@ -109,7 +110,7 @@ One manifest per bundle directory. **Required for platform ingest.**
 | `artifacts` | Filenames: `state_grid.parquet`, `observation_grid.parquet`, `waveforms.parquet` |
 | `summary_scalars` | Quick thickness/radius stats for catalog |
 
-**Also written** (provenance): `run_id`, `sim_engine`, `sim_engine_version`, `physics_mode`, `scenario_ref`, `scenario_params_hash`, `pipe_nominal`, `degradation_inputs`.
+**Also written** (provenance): `run_id`, `sim_engine`, `sim_engine_version` (`"0.2.0"`), `physics_mode` (`"ray_packet_pulse_echo"`), `inference_mode` (`"angular_saft"` or `"matched_filter"`), `scenario_ref`, `scenario_params_hash`, `pipe_nominal`, `degradation_inputs`.
 
 ### Parquet columns
 
@@ -154,7 +155,7 @@ Pipe OD/wall/SMYS for BC segments come from **line type category** (Transmission
 
 ---
 
-## Scope limits (v0.1)
+## Scope limits
 
 - **2D slice**, single ray — not full wave equation or 3D bore propagation
 - **Sim window cap** — never simulates an entire multi-hundred-km BC segment in one command
@@ -162,6 +163,7 @@ Pipe OD/wall/SMYS for BC segments come from **line type category** (Transmission
 - **Synthetic corrosion** — fixed YAML rates; not De Waard-from-ops
 - **No integrity alerts** in export — analysis belongs in the platform
 - **Single-threaded** export loop
+- **Angular SAFT only** — stitches monostatic shots in angle; not multi-element linear array beamforming (future work)
 
 ---
 
@@ -172,20 +174,45 @@ Pipe OD/wall/SMYS for BC segments come from **line type category** (Transmission
 
 ```bash
 pip install -e ".[dev]"
-pytest -q    # 87 tests
+pytest -q    # 97 tests
 ```
 
-Test coverage: ray forward, blind SAFT, corrosion, partition export, BC pipelines, segment study, CLI smoke tests.
+Test coverage: ray forward, angular SAFT / matched-filter inference, corrosion, partition export, BC pipelines, segment study, CLI smoke tests.
+
+### Inference modes (v0.2)
+
+| Mode | When used | Algorithm |
+|------|-----------|-----------|
+| `angular_saft` | Default for axial scan / export | Weighted sum of shot correlations on lag axis → polar focus image `I(r, φ)` → peak radius per direction |
+| `matched_filter` | Single-shot CLI/GUI; optional axial parity | Per-shot cross-correlate RX with TX template |
+
+Config keys: `angular_window_deg` (FWHM aperture, default 15°), `coherent_sum` (default true).
 
 ---
 
-## Release checklist (v0.1.0)
+## Release checklist (v0.2.0)
+
+Pre-tag gate — all must pass:
 
 ```bash
 pip install -e ".[dev]"
-./scripts/verify_release.sh          # pytest + smoke bc run
-./scripts/export_seed_bundles.sh     # optional: data/bundles/seed/
-git tag -a v0.1.0 -m "v0.1.0 prototype release"
+./scripts/verify_release.sh          # 97 tests + smoke bc run + manifest v0.2 checks
+```
+
+Optional before tagging:
+
+```bash
+./scripts/export_seed_bundles.sh     # refresh data/bundles/seed/ for platform demos
+```
+
+Tag and push when verification passes:
+
+```bash
+git add -A
+git commit -m "Release v0.2.0: angular SAFT migration and UX cleanup."
+git tag -a v0.2.0 -m "v0.2.0: angular SAFT migration, matched-filter rename, CLI workflow guide"
+git push origin master
+git push origin v0.2.0
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.

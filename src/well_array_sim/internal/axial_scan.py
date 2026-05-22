@@ -26,7 +26,7 @@ def z_stations_m(
 
 @dataclass(frozen=True)
 class AxialScanResult:
-    """Ray-packet + blind SAFT sweep over (z, θ)."""
+    """Ray-packet + blind range inference sweep over (z, θ)."""
 
     z_stations_m: np.ndarray
     angles_deg: np.ndarray
@@ -71,10 +71,10 @@ def simulate_axial_scan(
     store_waveforms: bool = True,
 ) -> AxialScanResult:
     """
-    Ray-packet pulse-echo + blind SAFT at each (z, θ) station.
+    Ray-packet pulse-echo + blind range inference at each (z, θ) station.
 
-    Independent 2D slices (φ = 0, no inter-station coupling). Waveforms are
-    retained for downstream NDT export; visualization uses inferred R(θ, z) only.
+    Uses angular SAFT when ``inference.mode`` is ``angular_saft``; otherwise
+    per-shot matched-filter ranging at each grid point.
     """
     from well_array_sim.internal.ray_forward import simulate_pulse_echo_2d
 
@@ -86,6 +86,11 @@ def simulate_axial_scan(
     n_z = len(z_list)
     n_theta = len(angles_deg)
 
+    use_angular_saft = inference is not None and inference.uses_angular_saft
+    per_shot_inference = inference is None or inference.uses_matched_filter
+    if use_angular_saft and not store_waveforms:
+        raise ValueError("angular_saft inference requires store_waveforms=True")
+
     inferred = np.zeros((n_z, n_theta), dtype=float)
     measured_us = np.zeros((n_z, n_theta), dtype=float)
     peaks = np.zeros((n_z, n_theta), dtype=float)
@@ -94,6 +99,7 @@ def simulate_axial_scan(
     time_us: np.ndarray | None = None
     p_tx: np.ndarray | None = None
     p_rx: np.ndarray | None = None
+    time_s: np.ndarray | None = None
 
     for iz, z_m in enumerate(z_list):
         for it, angle_deg in enumerate(angles_deg):
@@ -108,18 +114,37 @@ def simulate_axial_scan(
                 wall_profile=wall_profile,
                 echo=echo,
                 inference=inference,
+                run_inference=per_shot_inference,
             )
-            inferred[iz, it] = shot.inferred_distance_m
+            if per_shot_inference:
+                inferred[iz, it] = shot.inferred_distance_m
+                measured_us[iz, it] = 2.0 * shot.inferred_distance_m / fluid.vp * 1e6
             ground_truth[iz, it] = shot.ground_truth_distance_m
-            measured_us[iz, it] = 2.0 * shot.inferred_distance_m / fluid.vp * 1e6
             peaks[iz, it] = float(np.max(np.abs(shot.p_rx)))
 
             if store_waveforms:
                 if time_us is None:
                     time_us = shot.time_us.copy()
+                    time_s = time_us * 1e-6
                     p_tx = shot.p_tx.copy()
                     p_rx = np.zeros((n_z, n_theta, len(time_us)), dtype=float)
                 p_rx[iz, it] = shot.p_rx
+
+        if use_angular_saft:
+            if p_rx is None or p_tx is None or time_s is None:
+                raise RuntimeError("angular_saft requires stored waveforms")
+            from well_array_sim.internal.saft_polar import infer_axial_slice_saft
+
+            slice_inferred, _ = infer_axial_slice_saft(
+                p_rx[iz],
+                p_tx,
+                time_s,
+                angles_deg,
+                fluid.vp,
+                inference,
+            )
+            inferred[iz, :] = slice_inferred
+            measured_us[iz, :] = 2.0 * slice_inferred / fluid.vp * 1e6
 
     return AxialScanResult(
         z_stations_m=z_list,

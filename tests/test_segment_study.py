@@ -18,6 +18,8 @@ def test_bc_scenario_scales_inference_to_pipe_radius() -> None:
     assert data["pipe"]["outside_diameter_mm"] == 762.0
     assert data["inference"]["r_max_m"] > inner_r
     assert data["inference"]["r_min_m"] < inner_r
+    assert data["inference"]["mode"] == "angular_saft"
+    assert data["inference"]["angular_window_deg"] == 15.0
     assert data["corrosion"] is not None
     assert "transducer" in data
     assert data["scan"]["angle_step_deg"] == 1.0

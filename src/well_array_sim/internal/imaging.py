@@ -1,8 +1,8 @@
 """
-Blind range imaging (SAFT / matched-filter migration) for monostatic pulse-echo.
+Blind range imaging for monostatic pulse-echo.
 
-This module must not use ground-truth wall geometry — only received waveforms,
-TX template, fluid speed, and a blind range grid from scenario config.
+``matched_filter_range_profile`` — per-shot cross-correlate RX with TX (pulse-echo
+ranging). Angular synthetic-aperture focusing lives in ``saft_polar.py``.
 """
 
 from __future__ import annotations
@@ -23,14 +23,14 @@ def inference_range_grid(
     return np.arange(r_min_m, r_max_m + 0.5 * r_step_m, r_step_m, dtype=float)
 
 
-def _parabolic_peak_offset(y0: float, y1: float, y2: float) -> float:
+def parabolic_peak_offset(y0: float, y1: float, y2: float) -> float:
     denom = y0 - 2.0 * y1 + y2
     if abs(denom) <= 1e-12:
         return 0.0
     return float(np.clip(0.5 * (y0 - y2) / denom, -0.5, 0.5))
 
 
-def saft_range_profile(
+def matched_filter_range_profile(
     p_rx: np.ndarray,
     p_template: np.ndarray,
     time_s: np.ndarray,
@@ -38,11 +38,14 @@ def saft_range_profile(
     fluid_vp: float,
 ) -> tuple[np.ndarray, float]:
     """
-    Blind range migration and estimate.
+    Blind matched-filter range estimate (per shot).
 
-    Cross-correlates RX with the TX tone burst, builds I(r) on the blind grid by
-    interpolating |corr|² vs range, and estimates radius from the correlation
-    peak lag (with parabolic sub-sample refinement).
+    Cross-correlates RX with the TX tone burst, builds power I(r) on the blind
+    grid by interpolating |corr|² vs range, and estimates radius from the
+    correlation peak lag (with parabolic sub-sample refinement).
+
+    Must not use ground-truth wall geometry — only waveforms, TX template,
+    fluid speed, and the blind range grid.
     """
     p_rx = np.asarray(p_rx, dtype=float)
     p_template = np.asarray(p_template, dtype=float)
@@ -71,7 +74,7 @@ def saft_range_profile(
     peak_lag = float(lags[peak_rel])
 
     if 0 < peak_rel < len(power) - 1:
-        peak_lag += _parabolic_peak_offset(
+        peak_lag += parabolic_peak_offset(
             float(power[peak_rel - 1]),
             float(power[peak_rel]),
             float(power[peak_rel + 1]),

@@ -14,24 +14,24 @@ from well_array_sim.internal.visualize import (
     figure_corrosion_thickness_map,
     figure_packet_scene_2d,
     figure_pulse_echo,
-    figure_saft_profile,
+    figure_matched_filter_profile,
 )
 
 MODE_SINGLE = "single"
 MODE_AXIAL = "axial"
 MODE_CORROSION = "corrosion"
 
-VIEWS_SINGLE = ("Packet scene", "Pulse echo", "SAFT profile")
-VIEWS_AXIAL = ("SAFT point cloud", "Radius map")
+VIEWS_SINGLE = ("Packet scene", "Pulse echo", "Range profile")
+VIEWS_AXIAL = ("Inferred point cloud", "Radius map")
 VIEWS_CORROSION = ("Corrosion 3D", "Thickness map")
 
 
 def view_supports_overlays(view: str) -> bool:
     return view in (
         "Pulse echo",
-        "SAFT profile",
+        "Range profile",
         "Packet scene",
-        "SAFT point cloud",
+        "Inferred point cloud",
         "Radius map",
     )
 
@@ -68,8 +68,8 @@ def build_figure_for_view(
                 show_ground_truth=show_ground_truth,
                 layers=layers,
             )
-        if view == "SAFT profile":
-            return figure_saft_profile(
+        if view == "Range profile":
+            return figure_matched_filter_profile(
                 pulse_echo_result,
                 show_inferred=show_inferred,
                 show_ground_truth=show_ground_truth,
@@ -80,7 +80,7 @@ def build_figure_for_view(
     if mode == MODE_AXIAL:
         if axial_result is None:
             raise ValueError("Axial view requires an axial scan result")
-        if view == "SAFT point cloud":
+        if view == "Inferred point cloud":
             return figure_axial_cylinder_map(
                 axial_result,
                 scenario,

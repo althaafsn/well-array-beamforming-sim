@@ -1,8 +1,33 @@
-# Internal Pipe Ultrasonic Sim (v0.1)
+# Internal Pipe Ultrasonic Sim (v0.2)
 
-Python simulator for **internal** fluid-filled pipe pulse-echo NDT: 2D ray-packet forward physics + blind SAFT range inference, optional corrosion evolution, and BC pipeline segment studies with partition export for downstream ingest.
+Python simulator for **internal** fluid-filled pipe pulse-echo NDT: a rotating monostatic tool transmits ultrasound, receives wall echoes, and **blindly estimates inner radius** (angular SAFT migration across 360° sweeps). Optional corrosion evolves the true wall geometry over time. BC pipeline segment studies export 0.4 m partition bundles for **acoustic-ndt-platform** ingest.
 
 **Release reference** (schemas, benchmarks, scope limits): [RELEASE.md](RELEASE.md)
+
+---
+
+## What this simulates
+
+| Layer | What happens | Where it lives |
+|-------|----------------|----------------|
+| **Forward physics** | Ray-packet pulse-echo: TX pulse → fluid path → wall echo → RX waveform | `internal/ray_forward.py` |
+| **Blind inference** | Estimate wall distance from RX alone (no access to true wall shape) | `internal/imaging.py`, `internal/saft_polar.py` |
+| **Ground truth** | True inner wall geometry (uniform, wavy, or corrosion-evolved) | scenario YAML, `internal/corrosion/` |
+| **Pipeline study** | Map a real BC pipeline segment → simulate a short window → export bundles | `bc run`, `export-partition` |
+
+**Mental model:** imagine a tool sitting on the pipe centreline, rotating in azimuth while moving along the pipe axis. Each shot produces a waveform; inference stitches shots into a wall radius map. Corrosion changes the true wall between observation years — inference never reads that directly.
+
+---
+
+## Quick start
+
+```bash
+well-array-sim --help                              # list commands + examples
+well-array-sim sim --angle-deg 45                  # one shot, ~seconds
+well-array-sim-gui                                 # interactive explorer
+```
+
+Install first if needed — see [Install](#install) below.
 
 ---
 
@@ -22,8 +47,8 @@ Requires **Python ≥ 3.10**. GUI needs system tkinter (`sudo apt install python
 Verify:
 
 ```bash
-pytest -q          # 87 tests
-well-array-sim bc summary
+pytest -q          # 97 tests
+well-array-sim --help
 ```
 
 ---
@@ -32,9 +57,9 @@ well-array-sim bc summary
 
 | Goal | Command | Output folder | Typical runtime* |
 |------|---------|---------------|------------------|
+| **Try one ultrasound shot** | `well-array-sim sim --angle-deg 45` | `outputs/radial_demo_*` | seconds |
 | **Smoke test** (~1 min) | See [Example 1](#example-1-smoke-test-1-minute) | `outputs/smoke/` | ~1 min |
-| **BC segment study** (main workflow) | `well-array-sim bc run …` | `outputs/<name>/` | ~15 min (demo) to ~8 h (default 40 m) |
-| **Single-angle physics demo** | `well-array-sim sim --angle-deg 45 …` | `outputs/radial_demo_*` | seconds |
+| **BC pipeline segment study** (main batch workflow) | `well-array-sim bc run …` | `outputs/<name>/` | ~15 min (demo) to ~8 h (default 40 m) |
 | **Interactive exploration** | `well-array-sim-gui` | `outputs/` on save | interactive |
 | **Export bundles only** (no BC GeoJSON) | `well-array-sim export-partition …` | `--out-root` you choose | same per-partition cost as `bc run` |
 
@@ -91,7 +116,9 @@ well-array-sim bc run \
 
 ---
 
-## BC segment study (`bc run`) — step by step
+## BC pipeline segment study (`bc run`) — step by step
+
+`bc` = **British Columbia** pipeline GIS data bundled in `data/raw/`. It is not a generic "beamforming" command — it maps real pipeline segments to pipe geometry and runs the UT simulator along a short centre-line window.
 
 ### 1. Browse BC pipeline data
 
@@ -197,10 +224,10 @@ Seed bundles for **acoustic-ndt-platform**:
 
 | Command | Purpose |
 |---------|---------|
-| `well-array-sim sim --scenario … --angle-deg 45 --out outputs/demo` | Single-angle ray + SAFT PNG/NPZ |
-| `well-array-sim sim --axial-scan --out outputs/axial_demo` | Full 360° axial sweep on one scenario |
-| `well-array-sim-gui` | Desktop tkinter app (single / axial / corrosion views) |
-| `well-array-sim om summary` | CER O&M CSV stats (separate from simulation) |
+| `well-array-sim sim --scenario … --angle-deg 45 --out outputs/demo` | One shot at one azimuth → PNG/NPZ |
+| `well-array-sim sim --axial-scan --out outputs/axial_demo` | Full 360° tool sweep on one scenario |
+| `well-array-sim-gui` | Desktop tkinter app (one shot / pipe sweep / corrosion views) |
+| `well-array-sim om summary` | CER O&M CSV stats (metadata only — not UT simulation) |
 | `python -m well_array_sim.om_gui` | O&M data browser |
 
 Scenario YAML reference: [`scenarios/internal_pipe_default.yaml`](scenarios/internal_pipe_default.yaml). Corrosion demo: [`scenarios/internal_pipe_corrosion_default.yaml`](scenarios/internal_pipe_corrosion_default.yaml).
@@ -239,13 +266,36 @@ well-array-beamforming-sim/
 │   ├── cli.py           # well-array-sim, export-partition
 │   ├── segment_study.py # bc run orchestrator
 │   ├── export/          # partition bundle export
-│   ├── internal/        # ray physics, SAFT, corrosion
+│   ├── internal/        # ray physics, matched filter, angular SAFT, corrosion
 │   └── gui.py
-├── tests/               # pytest (87 tests)
+├── tests/               # pytest (97 tests)
 ├── outputs/             # gitignored; your runs go here
 ├── README.md            # this file — how to use
-└── RELEASE.md           # v0.1 schemas, benchmarks, limits
+└── RELEASE.md           # schemas, benchmarks, limits
 ```
+
+---
+
+## Inference modes
+
+| `inference.mode` | Description |
+|------------------|-------------|
+| **`angular_saft`** (default) | After a full 360° sweep at each axial station, migrate all shot correlations into a polar focus image `I(r, φ)` and extract radius per direction. This is true angular synthetic-aperture SAFT. |
+| **`matched_filter`** | Per-shot pulse-echo ranging (cross-correlate RX with TX). Used for single-angle CLI/GUI and optional axial parity tests. |
+
+Scenario block example:
+
+```yaml
+inference:
+  mode: angular_saft
+  r_min_m: 0.07
+  r_max_m: 0.14
+  r_step_m: 0.0005
+  angular_window_deg: 15.0   # angular aperture (FWHM) for stitching neighbouring shots
+  coherent_sum: true
+```
+
+Single-angle CLI (`well-array-sim sim`) and GUI **Single** mode use **matched-filter** ranging regardless of YAML mode. Only **Axial** / export use `angular_saft` when configured.
 
 ---
 
@@ -257,9 +307,11 @@ pytest -q
 
 ---
 
-## Release v0.1.0
+## Release v0.2.0
 
-Pre-tag verification (tests + smoke export):
+**Status:** ready to tag after `./scripts/verify_release.sh` passes (97 tests + smoke export).
+
+Pre-tag verification (tests + smoke export + manifest checks):
 
 ```bash
 chmod +x scripts/verify_release.sh
@@ -273,16 +325,10 @@ Optional: regenerate local seed bundles for platform ingest:
 # copies to ../acoustic-ndt-platform/data/bundles/seed/ if needed
 ```
 
-Tag when verification passes:
-
-```bash
-git tag -a v0.1.0 -m "v0.1.0 prototype: BC segment studies, partition export, mandatory waveforms"
-```
-
-See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
+Tag when verification passes — full steps in [RELEASE.md](RELEASE.md#release-checklist-v020).
 
 ---
 
-## Known limitations (v0.1)
+## Known limitations (v0.2)
 
-2D ray slice (not full wave equation), concentric monostatic tool, synthetic corrosion rates, category-based pipe specs from BC line type (not row-level O&M). Full BC segment length is never simulated in one run — use `--max-length-m`. Details: [RELEASE.md](RELEASE.md#scope-limits-v01).
+2D ray slice (not full wave equation), concentric monostatic tool, synthetic corrosion rates, category-based pipe specs from BC line type (not row-level O&M). Full BC segment length is never simulated in one run — use `--max-length-m`. Angular SAFT stitches shots in angle only (not a multi-element linear transducer array yet). Details: [RELEASE.md](RELEASE.md#scope-limits).

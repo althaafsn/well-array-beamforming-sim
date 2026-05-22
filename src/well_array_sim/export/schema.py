@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 EXPORT_SCHEMA_VERSION = "1.0.0"
 STUDY_SUMMARY_SCHEMA_VERSION = "1.0.0"
+SIM_ENGINE_VERSION = "0.2.0"
 BUNDLE_TYPE = "pipe_partition_observation"
 DEFAULT_AXIAL_LENGTH_M = 0.40
 
@@ -97,5 +98,5 @@ class ExportConfig:
     z_step_m: float = 0.01
     angle_step_deg: float = 1.0
     run_id: str = ""
-    sim_engine_version: str = "0.1.0"
+    sim_engine_version: str = SIM_ENGINE_VERSION
     degradation_inputs: dict = field(default_factory=dict)

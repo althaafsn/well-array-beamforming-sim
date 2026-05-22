@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from well_array_sim.internal.imaging import inference_range_grid, saft_range_profile
+from well_array_sim.internal.imaging import inference_range_grid, matched_filter_range_profile
 from well_array_sim.internal.pipe import BoreFluid, Pipe2D, SteelWall
 from well_array_sim.internal.pulse_echo_result import PulseEchoResult
 from well_array_sim.internal.scenario import InferenceConfig
@@ -40,12 +40,13 @@ def simulate_pulse_echo_2d(
     wall_profile: WallProfile | None = None,
     echo: EchoConfig | None = None,
     inference: InferenceConfig | None = None,
+    run_inference: bool = True,
 ) -> PulseEchoResult:
     """
-    Ray-packet forward model + blind SAFT inference at one (θ, z) station.
+    Ray-packet forward model + blind range inference at one (θ, z) station.
 
     Forward physics uses true wall radius for reflection timing (sim world).
-    Inference uses only p_rx, p_tx, and the blind range grid.
+    Inference uses matched-filter ranging (or defers to angular SAFT in axial scan).
     """
     time_s, p_tx = transducer.transmit_pulse(timing)
     ground_truth_m = inner_radius_at(
@@ -117,13 +118,17 @@ def simulate_pulse_echo_2d(
         r_step = inference.r_step_m
 
     r_grid = inference_range_grid(r_min_m=r_min, r_max_m=r_max, r_step_m=r_step)
-    range_profile_I, inferred_m = saft_range_profile(
-        p_rx,
-        p_tx,
-        time_s,
-        r_grid,
-        fluid.vp,
-    )
+    if run_inference:
+        range_profile_I, inferred_m = matched_filter_range_profile(
+            p_rx,
+            p_tx,
+            time_s,
+            r_grid,
+            fluid.vp,
+        )
+    else:
+        range_profile_I = np.zeros(len(r_grid), dtype=float)
+        inferred_m = 0.0
 
     return PulseEchoResult(
         theta_rad=theta_rad,

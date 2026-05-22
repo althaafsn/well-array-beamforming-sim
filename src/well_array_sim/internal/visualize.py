@@ -44,7 +44,7 @@ def figure_axial_cylinder_map(
     show_ground_truth: bool = True,
     layers: FigureLayers | None = None,
 ) -> Figure:
-    """3D point cloud of SAFT-inferred inner radius R(θ, z)."""
+    """3D point cloud of inferred inner radius R(θ, z)."""
     fig = plt.figure(figsize=(8, 7))
     if layers is not None:
         layers.fig = fig
@@ -93,7 +93,7 @@ def figure_axial_cylinder_map(
     ax3d.set_xlabel("x (m)")
     ax3d.set_ylabel("y (m)")
     ax3d.set_zlabel("z (m)")
-    ax3d.set_title("SAFT inferred R(θ, z) point cloud")
+    ax3d.set_title("Inferred R(θ, z) point cloud")
     if show_inferred or show_ground_truth:
         ax3d.legend(loc="upper right", fontsize=8)
     if not show_inferred and not show_ground_truth:
@@ -258,7 +258,7 @@ def figure_packet_scene_2d(
         ax.scatter([gt_xy[0]], [gt_xy[1]], c="crimson", s=60, marker="x", zorder=6, label="True wall hit")
     if show_inferred:
         inf_xy = direction * result.inferred_distance_m
-        ax.scatter([inf_xy[0]], [inf_xy[1]], c="green", s=60, marker="+", zorder=6, label="SAFT estimate")
+        ax.scatter([inf_xy[0]], [inf_xy[1]], c="green", s=60, marker="+", zorder=6, label="Inferred estimate")
 
     lim = scenario.pipe.outer_radius_m * 1.15
     ax.set_xlim(-lim, lim)
@@ -301,7 +301,7 @@ def figure_pulse_echo(
         if layers is not None:
             layers.ground_truth_artists.append(artist)
     if show_inferred:
-        artist = axes[1].axvline(inf_us, color="green", linestyle="-.", label="SAFT echo")
+        artist = axes[1].axvline(inf_us, color="green", linestyle="-.", label="Inferred echo")
         if layers is not None:
             layers.inferred_artists.append(artist)
     axes[1].set_xlabel("Time (µs)")
@@ -312,14 +312,14 @@ def figure_pulse_echo(
     return fig
 
 
-def figure_saft_profile(
+def figure_matched_filter_profile(
     result: PulseEchoResult,
     *,
     show_inferred: bool = True,
     show_ground_truth: bool = True,
     layers: FigureLayers | None = None,
 ) -> Figure:
-    """Blind SAFT range profile I(r)."""
+    """Blind matched-filter range profile I(r) for a single shot."""
     fig, ax = plt.subplots(figsize=(9, 4))
     if layers is not None:
         layers.fig = fig
@@ -333,7 +333,7 @@ def figure_saft_profile(
             result.inferred_distance_m * 1000.0,
             color="green",
             linestyle="-.",
-            label=f"SAFT r̂={result.inferred_distance_m * 1000:.1f} mm",
+            label=f"Inferred r̂={result.inferred_distance_m * 1000:.1f} mm",
         )
         if layers is not None:
             layers.inferred_artists.append(artist)
@@ -348,7 +348,7 @@ def figure_saft_profile(
             layers.ground_truth_artists.append(artist)
     ax.set_xlabel("Trial radius r (mm)")
     ax.set_ylabel("Matched-filter power")
-    ax.set_title(f"Blind SAFT @ θ={np.degrees(result.theta_rad):.0f}°")
+    ax.set_title(f"Matched-filter range profile @ θ={np.degrees(result.theta_rad):.0f}°")
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
     return fig
@@ -389,7 +389,7 @@ def plot_axial_scan_exports(
     show_inferred: bool = True,
     show_ground_truth: bool = True,
 ) -> tuple[Path, Path, Path]:
-    """Write axial SAFT point cloud, radius map PNGs, and NPZ."""
+    """Write axial inferred point cloud, radius map PNGs, and NPZ."""
     out = Path(out)
     cloud_path = _save_figure(
         figure_axial_cylinder_map(
@@ -451,7 +451,7 @@ def plot_pulse_echo(
     )
 
 
-def plot_saft_profile(
+def plot_matched_filter_profile(
     result: PulseEchoResult,
     out_path: Path,
     *,
@@ -459,7 +459,7 @@ def plot_saft_profile(
     show_ground_truth: bool = True,
 ) -> Path:
     return _save_figure(
-        figure_saft_profile(
+        figure_matched_filter_profile(
             result,
             show_inferred=show_inferred,
             show_ground_truth=show_ground_truth,

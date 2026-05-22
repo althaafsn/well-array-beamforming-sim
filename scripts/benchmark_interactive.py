@@ -86,7 +86,7 @@ def main() -> None:
         "cached GT cylinder",
         lambda: ground_truth_cylinder_pointcloud(scenario.pipe_3d, radius_m=scenario.pipe.inner_radius_m),
     )
-    _timed("axial SAFT point cloud", lambda: figure_axial_cylinder_map(axial, scenario))
+    _timed("axial inferred point cloud", lambda: figure_axial_cylinder_map(axial, scenario))
 
 
 if __name__ == "__main__":

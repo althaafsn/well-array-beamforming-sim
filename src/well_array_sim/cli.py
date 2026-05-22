@@ -41,9 +41,36 @@ from well_array_sim.internal.visualize import (
     plot_corrosion_exports,
     plot_packet_scene,
     plot_pulse_echo,
-    plot_saft_profile,
+    plot_matched_filter_profile,
     save_pulse_echo_npz,
 )
+
+
+CLI_DESCRIPTION = (
+    "Simulate internal pipe pulse-echo ultrasound: ray physics, blind wall ranging, "
+    "optional corrosion, and BC pipeline segment export."
+)
+
+CLI_EPILOG = """
+What this simulates
+  A monostatic tool inside a fluid-filled pipe transmits ultrasound, receives wall
+  echoes, and estimates inner radius (inference) compared to the true wall geometry.
+
+Commands (run 'well-array-sim COMMAND --help' for details)
+  sim               Quick demo from a scenario YAML (one shot or 360° pipe sweep)
+  bc                British Columbia pipeline GIS: browse segments, run multi-year studies
+  export-partition  Export platform observation bundles (0.4 m partitions × year)
+  om                Browse CER operation & maintenance CSV (metadata only, not simulation)
+
+Examples
+  well-array-sim sim --angle-deg 45
+  well-array-sim sim --axial-scan --scenario scenarios/internal_pipe_default.yaml
+  well-array-sim bc list --line-type Transmission --limit 5
+  well-array-sim bc run --permit-id 1987 --max-length-m 1.2 --max-partitions 3 --years 0
+  well-array-sim-gui
+"""
+
+KNOWN_COMMANDS = frozenset({"sim", "bc", "om", "export-partition"})
 
 
 def _parse_year_list(args: argparse.Namespace) -> list[int]:
@@ -103,10 +130,7 @@ def _run_export_partition(args: argparse.Namespace) -> None:
     print(path)
 
 
-def _build_export_partition_parser() -> argparse.ArgumentParser:
-    export_parser = argparse.ArgumentParser(
-        description="Export pipe_partition_observation bundles for platform ingest",
-    )
+def _add_export_partition_arguments(export_parser: argparse.ArgumentParser) -> None:
     export_parser.add_argument(
         "--scenario",
         type=Path,
@@ -159,6 +183,13 @@ def _build_export_partition_parser() -> argparse.ArgumentParser:
         help="Azimuth step for 360° sweep (default: scenario scan.angle_step_deg)",
     )
     export_parser.add_argument("--run-id", type=str, default="")
+
+
+def _build_export_partition_parser() -> argparse.ArgumentParser:
+    export_parser = argparse.ArgumentParser(
+        description="Export pipe_partition_observation bundles for platform ingest",
+    )
+    _add_export_partition_arguments(export_parser)
     return export_parser
 
 
@@ -226,9 +257,9 @@ def _run_single_angle(
         show_inferred=show_inferred,
         show_ground_truth=True,
     )
-    saft_path = plot_saft_profile(
+    range_path = plot_matched_filter_profile(
         result,
-        Path(f"{out}_saft_profile.png"),
+        Path(f"{out}_range_profile.png"),
         show_inferred=show_inferred,
         show_ground_truth=True,
     )
@@ -237,10 +268,10 @@ def _run_single_angle(
     err_mm = result.error_mm
     print(f"Packet scene:  {scene_path}")
     print(f"Pulse echo:    {echo_path}")
-    print(f"SAFT profile:  {saft_path}")
+    print(f"Range profile: {range_path}")
     print(f"NPZ:           {npz_path}")
     print(
-        f"θ={angle_deg:.1f}° | SAFT={result.inferred_distance_m*1000:.1f} mm | "
+        f"θ={angle_deg:.1f}° | inferred={result.inferred_distance_m*1000:.1f} mm | "
         f"true={result.ground_truth_distance_m*1000:.1f} mm | error={err_mm:.1f} mm"
     )
 
@@ -397,7 +428,12 @@ def _add_bc_length_args(parser: argparse.ArgumentParser) -> None:
 def _add_bc_parser(subparsers: argparse._SubParsersAction) -> None:
     bc_parser = subparsers.add_parser(
         "bc",
-        help="BC pipeline GeoJSON: list segments, build scenarios, run multi-year studies",
+        help="British Columbia pipeline GIS: browse segments, simulate UT, export bundles",
+        description=(
+            "Work with bundled BC pipeline GeoJSON (5,940 segments). "
+            "Map a real segment to pipe geometry, simulate rotating UT scans along "
+            "a short window, and export platform-ready observation bundles."
+        ),
     )
     bc_parser.add_argument(
         "--geojson",
@@ -424,15 +460,25 @@ def _add_bc_parser(subparsers: argparse._SubParsersAction) -> None:
     listing.set_defaults(func=_run_bc_list)
 
     show = bc_sub.add_parser("show", help="Show one BC segment and derived pipe category")
-    show.add_argument("--permit-id", type=int, required=True, help="OG_PIPELINE_SEGMENT_PERMIT_ID")
+    show.add_argument(
+        "--permit-id",
+        type=int,
+        required=True,
+        help="BC segment ID (OG_PIPELINE_SEGMENT_PERMIT_ID)",
+    )
     _add_bc_length_args(show)
     show.set_defaults(func=_run_bc_show)
 
     run = bc_sub.add_parser(
         "run",
-        help="Simulate a BC segment over corrosion years; export bundles + waveform plots",
+        help="Simulate UT along a pipeline window; export bundles (partition × year) + optional PNGs",
     )
-    run.add_argument("--permit-id", type=int, required=True, help="OG_PIPELINE_SEGMENT_PERMIT_ID")
+    run.add_argument(
+        "--permit-id",
+        type=int,
+        required=True,
+        help="BC segment ID (OG_PIPELINE_SEGMENT_PERMIT_ID; use 'bc list' to browse)",
+    )
     run.add_argument(
         "--years",
         type=str,
@@ -477,7 +523,12 @@ def _add_bc_parser(subparsers: argparse._SubParsersAction) -> None:
     run.set_defaults(func=_run_bc_run)
 
     scenario = bc_sub.add_parser("scenario", help="Build internal scenario YAML from one BC segment")
-    scenario.add_argument("--permit-id", type=int, required=True, help="OG_PIPELINE_SEGMENT_PERMIT_ID")
+    scenario.add_argument(
+        "--permit-id",
+        type=int,
+        required=True,
+        help="BC segment ID (OG_PIPELINE_SEGMENT_PERMIT_ID)",
+    )
     scenario.add_argument("--out", type=Path, default=Path("scenarios/bc_selected.yaml"))
     _add_bc_length_args(scenario)
     scenario.set_defaults(func=_run_bc_scenario)
@@ -511,47 +562,60 @@ def _add_om_parser(subparsers: argparse._SubParsersAction) -> None:
     export.set_defaults(func=_run_om_export)
 
 
-def _build_sim_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Internal pipe ray-packet simulator with blind SAFT (v0.1)",
-    )
+def _add_sim_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--scenario",
         type=Path,
         default=Path("scenarios/internal_pipe_default.yaml"),
+        help="Scenario YAML (pipe, fluid, scan grid, corrosion, inference)",
     )
     parser.add_argument(
         "--angle-deg",
         type=float,
         default=None,
-        help=f"Steer angle in degrees (default: {DEFAULT_STEER_ANGLE_DEG:g})",
+        help=f"Azimuth for a single shot in degrees (default: {DEFAULT_STEER_ANGLE_DEG:g})",
     )
     parser.add_argument(
         "--axial-scan",
         action="store_true",
-        help="Full 360° azimuth sweep at each axial z station (fixed tool)",
+        help="Sweep 360° at each axial station along the pipe (tool rotation + SAFT inference)",
     )
     parser.add_argument(
         "--angle-step-deg",
         type=float,
         default=None,
-        help="Angular resolution for --axial-scan (default: scenario scan.angle_step_deg)",
+        help="Azimuth step for --axial-scan (default: scenario scan.angle_step_deg)",
     )
     inferred_group = parser.add_mutually_exclusive_group()
     inferred_group.add_argument(
         "--show-inferred",
         dest="show_inferred",
         action="store_true",
-        help="Show inferred distance overlays on PNG plots (default)",
+        help="Show blind inference overlays on PNG plots (default)",
     )
     inferred_group.add_argument(
         "--hide-inferred",
         dest="show_inferred",
         action="store_false",
-        help="Hide inferred overlays on PNG plots (ground truth only)",
+        help="Hide inference overlays on PNG plots (ground truth only)",
     )
     parser.set_defaults(show_inferred=True)
-    parser.add_argument("--out", type=Path, default=Path("outputs/radial_demo"))
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("outputs/radial_demo"),
+        help="Output path prefix for PNG/NPZ files",
+    )
+
+
+def _build_sim_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run a quick pulse-echo simulation from a scenario YAML: "
+            "one ultrasound shot at one angle, or a full rotating tool sweep."
+        ),
+    )
+    _add_sim_arguments(parser)
     return parser
 
 
@@ -560,71 +624,74 @@ def _run_sim_cli(argv: list[str] | None = None) -> None:
     _run_sim(args)
 
 
-def main() -> None:
-    if len(sys.argv) > 1 and sys.argv[1] == "export-partition":
-        main_export_partition(sys.argv[2:])
-        return
-    if len(sys.argv) <= 1 or sys.argv[1] not in {"om", "bc", "sim"}:
-        _run_sim_cli(sys.argv[1:])
-        return
+def _normalize_cli_argv(argv: list[str]) -> list[str]:
+    """Map legacy bare flags (well-array-sim --angle-deg 45) to the sim subcommand."""
+    if not argv or argv[0] in KNOWN_COMMANDS:
+        return argv
+    if argv[0].startswith("-"):
+        return ["sim", *argv]
+    return argv
 
-    parser = argparse.ArgumentParser(
-        description="Internal pipe ray-packet simulator with blind SAFT (v0.1)",
+
+def _build_root_parser() -> argparse.ArgumentParser:
+    return argparse.ArgumentParser(
+        prog="well-array-sim",
+        description=CLI_DESCRIPTION,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=CLI_EPILOG,
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    _add_om_parser(subparsers)
-    _add_bc_parser(subparsers)
 
+
+def _configure_root_subparsers(subparsers: argparse._SubParsersAction) -> None:
     sim_parser = subparsers.add_parser(
         "sim",
-        help="Run single-angle or axial ray+SAFT simulation from a scenario YAML",
+        help="Quick pulse-echo demo from a scenario YAML",
+        description=(
+            "Simulate one ultrasound shot at one azimuth, or rotate through 360° at "
+            "each axial station along the pipe. Writes PNG/NPZ previews."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    sim_parser.add_argument(
-        "--scenario",
-        type=Path,
-        default=Path("scenarios/internal_pipe_default.yaml"),
-    )
-    sim_parser.add_argument(
-        "--angle-deg",
-        type=float,
-        default=None,
-        help=f"Steer angle in degrees (default: {DEFAULT_STEER_ANGLE_DEG:g})",
-    )
-    sim_parser.add_argument(
-        "--axial-scan",
-        action="store_true",
-        help="Full 360° azimuth sweep at each axial z station (fixed tool)",
-    )
-    sim_parser.add_argument(
-        "--angle-step-deg",
-        type=float,
-        default=None,
-        help="Angular resolution for --axial-scan (default: scenario scan.angle_step_deg)",
-    )
-    inferred_group = sim_parser.add_mutually_exclusive_group()
-    inferred_group.add_argument(
-        "--show-inferred",
-        dest="show_inferred",
-        action="store_true",
-        help="Show inferred distance overlays on PNG plots (default)",
-    )
-    inferred_group.add_argument(
-        "--hide-inferred",
-        dest="show_inferred",
-        action="store_false",
-        help="Hide inferred overlays on PNG plots (ground truth only)",
-    )
-    sim_parser.set_defaults(show_inferred=True, func=_run_sim)
-    sim_parser.add_argument("--out", type=Path, default=Path("outputs/radial_demo"))
+    _add_sim_arguments(sim_parser)
     _add_corrosion_args(sim_parser)
+    sim_parser.set_defaults(func=_run_sim)
 
-    argv = parser.parse_args()
-    if argv.command in {"om", "bc"}:
-        if not hasattr(argv, "func"):
-            parser.error(f"{argv.command} requires a subcommand")
-        argv.func(argv)
+    export_parser = subparsers.add_parser(
+        "export-partition",
+        help="Export platform observation bundles (partition × year)",
+        description=(
+            "Run the full UT simulation for one or more 0.4 m pipe partitions and "
+            "write manifest.json + parquets for acoustic-ndt-platform ingest."
+        ),
+    )
+    _add_export_partition_arguments(export_parser)
+    export_parser.set_defaults(func=_run_export_partition)
+
+    _add_bc_parser(subparsers)
+    _add_om_parser(subparsers)
+
+
+def main() -> None:
+    raw_argv = sys.argv[1:]
+
+    if raw_argv and raw_argv[0] == "export-partition":
+        main_export_partition(raw_argv[1:])
         return
-    argv.func(argv)
+
+    if not raw_argv or (len(raw_argv) == 1 and raw_argv[0] in ("-h", "--help")):
+        _build_root_parser().print_help()
+        return
+
+    argv = _normalize_cli_argv(raw_argv)
+    parser = _build_root_parser()
+    subparsers = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
+    _configure_root_subparsers(subparsers)
+
+    args = parser.parse_args(argv)
+    if args.command in {"om", "bc"}:
+        if not hasattr(args, "func"):
+            parser.error(f"{args.command} requires a subcommand")
+    args.func(args)
 
 
 def _run_sim(args: argparse.Namespace) -> None:

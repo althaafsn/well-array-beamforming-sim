@@ -37,6 +37,12 @@ OVERLAY_DEBOUNCE_MS = 200
 DEFAULT_PREVIEW_ANGLE_STEP = 5.0
 UI_QUEUE_POLL_MS = 50
 
+MODE_HINTS = {
+    MODE_SINGLE: "One ultrasound pulse at one azimuth — echo waveform and blind range estimate.",
+    MODE_AXIAL: "Rotate 360° at each pipe station — wall radius map (angular SAFT when configured).",
+    MODE_CORROSION: "Wall thickness loss over time — simulation ground truth, not UT inference.",
+}
+
 
 @dataclass(frozen=True)
 class _RunJob:
@@ -61,7 +67,7 @@ class _RunOutcome:
 class PipeSimGui:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Internal Pipe Ultrasonic Sim")
+        self.root.title("Internal Pipe Pulse-Echo Sim")
         self.root.minsize(900, 600)
 
         self.scenario = None
@@ -79,25 +85,32 @@ class PipeSimGui:
         self._build_controls()
         self._build_canvas()
         self._on_mode_change()
-        self._set_status("Ready. Click Run to simulate.")
+        self._set_status("Ready. Pick a simulation type and click Run.")
         self.root.after(UI_QUEUE_POLL_MS, self._poll_ui_queue)
 
     def _build_controls(self) -> None:
         panel = ttk.Frame(self.root, padding=8)
         panel.pack(side=tk.LEFT, fill=tk.Y)
 
-        ttk.Label(panel, text="Scenario").grid(row=0, column=0, sticky=tk.W)
-        self.scenario_var = tk.StringVar(value=str(DEFAULT_SCENARIO))
-        ttk.Entry(panel, textvariable=self.scenario_var, width=32).grid(row=1, column=0, sticky=tk.EW, pady=(0, 8))
+        ttk.Label(
+            panel,
+            text="Rotating UT tool inside a fluid-filled pipe",
+            wraplength=220,
+            font=("", 9, "italic"),
+        ).grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
 
-        ttk.Label(panel, text="Mode").grid(row=2, column=0, sticky=tk.W)
+        ttk.Label(panel, text="Scenario").grid(row=1, column=0, sticky=tk.W)
+        self.scenario_var = tk.StringVar(value=str(DEFAULT_SCENARIO))
+        ttk.Entry(panel, textvariable=self.scenario_var, width=32).grid(row=2, column=0, sticky=tk.EW, pady=(0, 8))
+
+        ttk.Label(panel, text="Simulation").grid(row=3, column=0, sticky=tk.W)
         self.mode_var = tk.StringVar(value=MODE_SINGLE)
         mode_frame = ttk.Frame(panel)
-        mode_frame.grid(row=3, column=0, sticky=tk.W, pady=(0, 8))
+        mode_frame.grid(row=4, column=0, sticky=tk.W, pady=(0, 4))
         for text, value in (
-            ("Single angle", MODE_SINGLE),
-            ("Axial scan", MODE_AXIAL),
-            ("Corrosion", MODE_CORROSION),
+            ("One shot", MODE_SINGLE),
+            ("Pipe sweep (360°)", MODE_AXIAL),
+            ("Corrosion (ground truth)", MODE_CORROSION),
         ):
             ttk.Radiobutton(
                 mode_frame,
@@ -107,17 +120,25 @@ class PipeSimGui:
                 command=self._on_mode_change,
             ).pack(anchor=tk.W)
 
-        ttk.Label(panel, text="Angle (deg)").grid(row=4, column=0, sticky=tk.W)
+        self.mode_hint_var = tk.StringVar(value=MODE_HINTS[MODE_SINGLE])
+        ttk.Label(
+            panel,
+            textvariable=self.mode_hint_var,
+            wraplength=220,
+            foreground="#555555",
+        ).grid(row=5, column=0, sticky=tk.W, pady=(0, 8))
+
+        ttk.Label(panel, text="Angle (deg)").grid(row=6, column=0, sticky=tk.W)
         self.angle_var = tk.DoubleVar(value=DEFAULT_STEER_ANGLE_DEG)
         self.angle_spin = ttk.Spinbox(panel, from_=0.0, to=359.0, textvariable=self.angle_var, width=10)
-        self.angle_spin.grid(row=5, column=0, sticky=tk.W, pady=(0, 8))
+        self.angle_spin.grid(row=7, column=0, sticky=tk.W, pady=(0, 8))
 
-        ttk.Label(panel, text="Angle step (preview deg)").grid(row=6, column=0, sticky=tk.W)
+        ttk.Label(panel, text="Angle step (preview deg)").grid(row=8, column=0, sticky=tk.W)
         self.step_var = tk.DoubleVar(value=DEFAULT_PREVIEW_ANGLE_STEP)
         self.step_spin = ttk.Spinbox(panel, from_=0.5, to=45.0, increment=0.5, textvariable=self.step_var, width=10)
-        self.step_spin.grid(row=7, column=0, sticky=tk.W, pady=(0, 8))
+        self.step_spin.grid(row=9, column=0, sticky=tk.W, pady=(0, 8))
 
-        ttk.Label(panel, text="Corrosion year").grid(row=8, column=0, sticky=tk.W)
+        ttk.Label(panel, text="Corrosion year").grid(row=10, column=0, sticky=tk.W)
         self.corrosion_year_var = tk.DoubleVar(value=0.0)
         self.corrosion_year_spin = ttk.Spinbox(
             panel,
@@ -128,15 +149,15 @@ class PipeSimGui:
             width=10,
             state="disabled",
         )
-        self.corrosion_year_spin.grid(row=9, column=0, sticky=tk.W, pady=(0, 8))
+        self.corrosion_year_spin.grid(row=11, column=0, sticky=tk.W, pady=(0, 8))
 
-        ttk.Label(panel, text="View").grid(row=10, column=0, sticky=tk.W)
+        ttk.Label(panel, text="View").grid(row=12, column=0, sticky=tk.W)
         self.view_var = tk.StringVar(value=VIEWS_SINGLE[0])
         self.view_combo = ttk.Combobox(panel, textvariable=self.view_var, state="readonly", width=18)
-        self.view_combo.grid(row=11, column=0, sticky=tk.EW, pady=(0, 8))
+        self.view_combo.grid(row=13, column=0, sticky=tk.EW, pady=(0, 8))
         self.view_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_view_change())
 
-        ttk.Label(panel, text="Packet time (µs)").grid(row=12, column=0, sticky=tk.W)
+        ttk.Label(panel, text="Packet time (µs)").grid(row=14, column=0, sticky=tk.W)
         self.time_us_var = tk.DoubleVar(value=80.0)
         self.time_spin = ttk.Spinbox(
             panel,
@@ -147,7 +168,7 @@ class PipeSimGui:
             width=10,
             command=self._on_time_change,
         )
-        self.time_spin.grid(row=13, column=0, sticky=tk.W, pady=(0, 8))
+        self.time_spin.grid(row=15, column=0, sticky=tk.W, pady=(0, 8))
         self.time_spin.bind("<Return>", lambda _e: self._on_time_change())
         self.time_spin.bind("<FocusOut>", lambda _e: self._on_time_change())
 
@@ -159,27 +180,27 @@ class PipeSimGui:
             variable=self.show_inferred_var,
             command=self._schedule_overlay_redraw,
         )
-        self.inferred_check.grid(row=14, column=0, sticky=tk.W)
+        self.inferred_check.grid(row=16, column=0, sticky=tk.W)
         self.gt_check = ttk.Checkbutton(
             panel,
             text="Show ground truth",
             variable=self.show_gt_var,
             command=self._schedule_overlay_redraw,
         )
-        self.gt_check.grid(row=15, column=0, sticky=tk.W, pady=(0, 8))
+        self.gt_check.grid(row=17, column=0, sticky=tk.W, pady=(0, 8))
 
-        ttk.Label(panel, text="Output prefix").grid(row=16, column=0, sticky=tk.W)
+        ttk.Label(panel, text="Output prefix").grid(row=18, column=0, sticky=tk.W)
         self.prefix_var = tk.StringVar(value=DEFAULT_OUTPUT_PREFIX)
-        ttk.Entry(panel, textvariable=self.prefix_var, width=20).grid(row=17, column=0, sticky=tk.EW, pady=(0, 8))
+        ttk.Entry(panel, textvariable=self.prefix_var, width=20).grid(row=19, column=0, sticky=tk.EW, pady=(0, 8))
 
         btn_frame = ttk.Frame(panel)
-        btn_frame.grid(row=18, column=0, sticky=tk.EW, pady=(0, 8))
+        btn_frame.grid(row=20, column=0, sticky=tk.EW, pady=(0, 8))
         self.run_btn = ttk.Button(btn_frame, text="Run", command=self._on_run)
         self.run_btn.pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(btn_frame, text="Save PNG", command=self._on_save).pack(side=tk.LEFT)
 
         self.status_var = tk.StringVar(value="")
-        ttk.Label(panel, textvariable=self.status_var, wraplength=220).grid(row=19, column=0, sticky=tk.W)
+        ttk.Label(panel, textvariable=self.status_var, wraplength=220).grid(row=21, column=0, sticky=tk.W)
         panel.columnconfigure(0, weight=1)
 
     def _build_canvas(self) -> None:
@@ -189,6 +210,7 @@ class PipeSimGui:
 
     def _on_mode_change(self) -> None:
         mode = self.mode_var.get()
+        self.mode_hint_var.set(MODE_HINTS.get(mode, ""))
         if mode == MODE_SINGLE:
             self.view_combo["values"] = VIEWS_SINGLE
             self.view_var.set(VIEWS_SINGLE[0])
@@ -414,7 +436,7 @@ class PipeSimGui:
             )
             one_way_us = result.ground_truth_distance_m / result.fluid_vp * 1e6
             status = (
-                f"θ={job.angle_deg:.1f}° | SAFT={result.inferred_distance_m * 1000:.1f} mm | "
+                f"θ={job.angle_deg:.1f}° | inferred={result.inferred_distance_m * 1000:.1f} mm | "
                 f"true={result.ground_truth_distance_m * 1000:.1f} mm"
             )
             return _RunOutcome(
@@ -442,7 +464,7 @@ class PipeSimGui:
         )
         status = (
             f"{len(axial_result.z_stations_m)} z stations | "
-            f"{len(axial_result.angles_deg)} angles @ {job.angle_step_deg:g}° (ray + SAFT) | "
+            f"{len(axial_result.angles_deg)} angles @ {job.angle_step_deg:g}° (ray + inference) | "
             f"mean inferred={axial_result.inferred_distance_m.mean() * 1000:.1f} mm"
         )
         return _RunOutcome(

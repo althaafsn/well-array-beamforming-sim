@@ -86,7 +86,12 @@ def build_manifest_dict(
         "run_id": export_cfg.run_id or f"{identity.partition_id}_y{identity.observation_year}",
         "sim_engine": "well_array_sim",
         "sim_engine_version": export_cfg.sim_engine_version,
-        "physics_mode": "ray_packet_saft",
+        "physics_mode": "ray_packet_pulse_echo",
+        "inference_mode": (
+            scenario.inference.mode
+            if scenario.inference is not None
+            else "matched_filter"
+        ),
         "scenario_ref": export_cfg.scenario_path,
         "scenario_params_hash": scenario_params_hash(scenario),
         "grid": {

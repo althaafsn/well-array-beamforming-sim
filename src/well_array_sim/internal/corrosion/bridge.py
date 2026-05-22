@@ -9,7 +9,7 @@ from well_array_sim.internal.wall_profile import WallProfile
 
 def wall_profile_from_point_cloud(cloud: PipeWallPointCloud, pipe: Pipe2D) -> WallProfile:
     """
-    Build WallProfile from corroded point cloud for ray/SAFT simulation.
+    Build WallProfile from corroded point cloud for ray simulation.
 
     R_inner(θ, z) = R_nom + Total_ML(θ, z).
     """

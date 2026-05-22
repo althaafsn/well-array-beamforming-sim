@@ -33,7 +33,7 @@ def test_build_figure_for_view_axial(scenario) -> None:
     )
     fig = build_figure_for_view(
         mode="axial",
-        view="SAFT point cloud",
+        view="Inferred point cloud",
         scenario=scenario,
         pulse_echo_result=None,
         axial_result=axial,

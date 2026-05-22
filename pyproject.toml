@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "well-array-beamforming-sim"
-version = "0.1.0"
-description = "Internal pipe ultrasonic simulator: ray-packet forward model, blind SAFT, BC segment studies (v0.1 prototype)"
+version = "0.2.0"
+description = "Internal pipe pulse-echo simulator: ray physics, angular SAFT, BC pipeline studies"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

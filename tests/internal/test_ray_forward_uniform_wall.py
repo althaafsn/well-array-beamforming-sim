@@ -43,7 +43,7 @@ def test_echo_arrival_time_matches_round_trip() -> None:
     assert np.max(np.abs(echo_slice)) > 0.1
 
 
-def test_saft_profile_peaks_near_ground_truth() -> None:
+def test_matched_filter_profile_peaks_near_ground_truth() -> None:
     scenario = load_internal_scenario("scenarios/internal_pipe_default.yaml")
     result = simulate_pulse_echo_2d(
         scenario.pipe,

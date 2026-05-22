@@ -111,10 +111,12 @@ def scenario_yaml_from_bc_segment(
     data = apply_category_spec(data, spec, length_m=sim_length_m)
     inner_r = float(data["pipe"]["inner_radius_m"])
     data["inference"] = {
-        "mode": "saft",
+        "mode": "angular_saft",
         "r_min_m": round(max(0.01, inner_r * 0.65), 6),
         "r_max_m": round(inner_r * 1.35, 6),
         "r_step_m": 0.0005,
+        "angular_window_deg": 15.0,
+        "coherent_sum": True,
     }
     vp = float(data["medium"]["bore_fluid"]["vp"])
     t_end_us = max(float(data["timing"].get("t_end_us", 600.0)), 2.0 * inner_r * 1.35 / vp * 1e6 + 50.0)

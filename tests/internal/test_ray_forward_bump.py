@@ -5,7 +5,7 @@ import math
 from well_array_sim.internal import load_internal_scenario, simulate_pulse_echo_2d
 
 
-def test_saft_finds_bump_at_45_deg() -> None:
+def test_matched_filter_finds_bump_at_45_deg() -> None:
     scenario = load_internal_scenario("scenarios/internal_pipe_wavy_wall.yaml")
     result = simulate_pulse_echo_2d(
         scenario.pipe,
@@ -22,7 +22,7 @@ def test_saft_finds_bump_at_45_deg() -> None:
     assert abs(result.inferred_distance_m - result.ground_truth_distance_m) < 0.008
 
 
-def test_saft_nominal_radius_away_from_bump() -> None:
+def test_matched_filter_nominal_radius_away_from_bump() -> None:
     scenario = load_internal_scenario("scenarios/internal_pipe_wavy_wall.yaml")
     result = simulate_pulse_echo_2d(
         scenario.pipe,

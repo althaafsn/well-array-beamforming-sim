@@ -30,10 +30,20 @@ DEFAULT_ANGLE_STEP_DEG = 1.0
 
 @dataclass(frozen=True)
 class InferenceConfig:
-    mode: str = "saft"
+    mode: str = "angular_saft"
     r_min_m: float = 0.07
     r_max_m: float = 0.14
     r_step_m: float = 0.0005
+    angular_window_deg: float = 15.0
+    coherent_sum: bool = True
+
+    @property
+    def uses_angular_saft(self) -> bool:
+        return self.mode == "angular_saft"
+
+    @property
+    def uses_matched_filter(self) -> bool:
+        return self.mode == "matched_filter"
 
 
 @dataclass(frozen=True)
@@ -142,11 +152,19 @@ def parse_inference_config(data: dict[str, Any], *, nominal_inner_radius_m: floa
             r_max_m=nominal_inner_radius_m * 1.35,
             r_step_m=0.0005,
         )
+    mode = str(cfg.get("mode", "angular_saft"))
+    if mode == "saft":
+        raise ValueError(
+            'inference.mode "saft" was removed in v0.2; use "matched_filter" '
+            '(per-shot ranging) or "angular_saft" (default, angular migration)'
+        )
     return InferenceConfig(
-        mode=str(cfg.get("mode", "saft")),
+        mode=mode,
         r_min_m=float(cfg.get("r_min_m", max(0.01, nominal_inner_radius_m * 0.65))),
         r_max_m=float(cfg.get("r_max_m", nominal_inner_radius_m * 1.35)),
         r_step_m=float(cfg.get("r_step_m", 0.0005)),
+        angular_window_deg=float(cfg.get("angular_window_deg", 15.0)),
+        coherent_sum=bool(cfg.get("coherent_sum", True)),
     )
 
 

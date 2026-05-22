@@ -18,10 +18,12 @@ scan:
   z_start_m: 0.0
   angle_step_deg: 1.0
 inference:
-  mode: saft
+  mode: angular_saft
   r_min_m: 0.07
   r_max_m: 0.14
   r_step_m: 0.0005
+  angular_window_deg: 15.0
+  coherent_sum: true
 timing:
   dt_us: 0.5
   t_end_us: 600.0

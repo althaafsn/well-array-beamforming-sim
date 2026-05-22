@@ -15,8 +15,8 @@
 #   well-array-sim bc run --permit-id 13 --years 0 --max-length-m 1.2 --max-partitions 3 \
 #     --z-step-m 0.20 --angle-step-deg 90 --no-plots --out outputs/smoke
 #
-# Quick physics demo:
-#   well-array-sim sim --scenario scenarios/internal_pipe_default.yaml --angle-deg 45 --out outputs/demo
+#   well-array-sim --help
+#   well-array-sim sim --angle-deg 45 --out outputs/demo
 #
 # GUI (needs system tkinter, e.g. apt install python3-tk):
 #   well-array-sim-gui
@@ -24,7 +24,7 @@
 # Tests:
 #   pytest -q
 #
-# Docs: README.md (how to use), RELEASE.md (v0.1 benchmarks & schemas)
+# Docs: README.md (how to use), RELEASE.md (v0.2 benchmarks & schemas)
 
 # --- Core simulation ---
 numpy>=1.24

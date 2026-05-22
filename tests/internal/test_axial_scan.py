@@ -52,6 +52,9 @@ def test_axial_scan_shapes_and_uniform_wall() -> None:
 
 def test_axial_station_z0_matches_pulse_echo_sweep() -> None:
     scenario = _default_setup()
+    from dataclasses import replace
+
+    inference = replace(scenario.inference, mode="matched_filter")
     angle_step_deg = 30.0
     angles_deg = np.arange(0.0, 360.0, angle_step_deg, dtype=float)
     singles = []
@@ -65,7 +68,7 @@ def test_axial_station_z0_matches_pulse_echo_sweep() -> None:
                 scenario.timing,
                 math.radians(angle_deg),
                 z_m=0.0,
-                inference=scenario.inference,
+                inference=inference,
             )
         )
     axial = simulate_axial_scan(
@@ -77,7 +80,7 @@ def test_axial_station_z0_matches_pulse_echo_sweep() -> None:
         np.array([0.0]),
         angle_step_deg=angle_step_deg,
         z_step_m=0.01,
-        inference=scenario.inference,
+        inference=inference,
     )
     inferred = np.array([s.inferred_distance_m for s in singles])
     measured = np.array([s.measured_echo_us for s in singles])
@@ -85,8 +88,11 @@ def test_axial_station_z0_matches_pulse_echo_sweep() -> None:
     assert np.allclose(axial.measured_echo_us[0], measured, atol=1e-9)
 
 
-def test_axial_scan_can_skip_waveform_storage() -> None:
+def test_axial_scan_can_skip_waveform_storage_with_matched_filter() -> None:
     scenario = _default_setup()
+    from dataclasses import replace
+
+    inference = replace(scenario.inference, mode="matched_filter")
     scan = simulate_axial_scan(
         scenario.pipe,
         scenario.fluid,
@@ -95,7 +101,7 @@ def test_axial_scan_can_skip_waveform_storage() -> None:
         scenario.timing,
         np.array([0.0]),
         angle_step_deg=90.0,
-        inference=scenario.inference,
+        inference=inference,
         store_waveforms=False,
     )
     assert scan.p_rx is None

@@ -9,7 +9,13 @@ import pytest
 
 from well_array_sim.export.bundle import export_partition_observation_bundle
 from well_array_sim.export.manifest import read_manifest
-from well_array_sim.export.schema import EXPORT_SCHEMA_VERSION, OBSERVATION_GRID_COLUMNS, STATE_GRID_COLUMNS, WAVEFORM_COLUMNS
+from well_array_sim.export.schema import (
+    EXPORT_SCHEMA_VERSION,
+    OBSERVATION_GRID_COLUMNS,
+    SIM_ENGINE_VERSION,
+    STATE_GRID_COLUMNS,
+    WAVEFORM_COLUMNS,
+)
 
 
 SCENARIO = Path("scenarios/internal_pipe_corrosion_default.yaml")
@@ -56,6 +62,9 @@ def test_manifest_schema_version(tmp_path: Path, scenario_path: Path) -> None:
     assert manifest["segment_id"] == "test_seg"
     assert manifest["partition_id"] == "test_seg@p0000"
     assert manifest["observation_year"] == 0
+    assert manifest["sim_engine_version"] == SIM_ENGINE_VERSION
+    assert manifest["inference_mode"] == "angular_saft"
+    assert manifest["physics_mode"] == "ray_packet_pulse_echo"
     assert "waveforms" in manifest["artifacts"]
 
 

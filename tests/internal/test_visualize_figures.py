@@ -110,8 +110,8 @@ def test_figure_axial_radius_map_builds(scenario) -> None:
 @pytest.mark.parametrize(
     ("view", "show_inferred", "show_ground_truth"),
     [
-        ("SAFT point cloud", True, False),
-        ("SAFT point cloud", False, True),
+        ("Inferred point cloud", True, False),
+        ("Inferred point cloud", False, True),
         ("Radius map", True, True),
         ("Radius map", False, False),
     ],
@@ -160,7 +160,7 @@ def test_build_figure_for_view_axial(scenario) -> None:
     )
     fig = build_figure_for_view(
         mode=MODE_AXIAL,
-        view="SAFT point cloud",
+        view="Inferred point cloud",
         scenario=scenario,
         pulse_echo_result=None,
         axial_result=axial,

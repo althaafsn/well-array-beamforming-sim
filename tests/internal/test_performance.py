@@ -35,7 +35,7 @@ def test_ground_truth_cylinder_is_dense(scenario) -> None:
 
 
 def test_axial_default_scans_every_z_station(scenario) -> None:
-    """Axial scan runs an independent ray+SAFT shot at each (z, θ)."""
+    """Axial scan runs ray forward at each (z, θ); inference mode selects angular SAFT or matched filter."""
     z_vals = np.array([0.0, 0.05, 0.1])
     scan = simulate_axial_scan(
         scenario.pipe,
