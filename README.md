@@ -19,6 +19,47 @@ Python simulator for **internal** fluid-filled pipe pulse-echo NDT: a rotating m
 
 ---
 
+## Example outputs
+
+Figures below are checked into [`docs/images/`](docs/images/) so GitHub renders them in this README. Regenerate after plot changes:
+
+```bash
+chmod +x scripts/generate_readme_images.sh
+./scripts/generate_readme_images.sh
+```
+
+### One ultrasound shot (`well-array-sim sim`)
+
+Scenario: [`internal_pipe_wavy_wall.yaml`](scenarios/internal_pipe_wavy_wall.yaml) — local wall bump at 45°.  
+Command: `well-array-sim sim --scenario scenarios/internal_pipe_wavy_wall.yaml --angle-deg 45 --out docs/images/one_shot`
+
+| Ray path at echo time | TX/RX waveforms | Matched-filter range profile |
+|:---:|:---:|:---:|
+| ![Packet scene](docs/images/one_shot_packet_scene.png) | ![Pulse echo](docs/images/one_shot_pulse_echo.png) | ![Range profile](docs/images/one_shot_range_profile.png) |
+| Fluid ray + wall hit | Transmitted vs received pressure | Blind peak pick vs true wall distance |
+
+### Pipe sweep — 360° × pipe length (`well-array-sim sim --axial-scan`)
+
+Same wavy-wall scenario; **angular SAFT** combines shots at each axial station (30° steps here for a smaller preview).
+
+Command: `well-array-sim sim --scenario scenarios/internal_pipe_wavy_wall.yaml --axial-scan --angle-step-deg 30 --out docs/images/axial_sweep`
+
+| Inferred wall point cloud | Radius map r(θ, z) |
+|:---:|:---:|
+| ![Axial point cloud](docs/images/axial_point_cloud.png) | ![Axial radius map](docs/images/axial_radius_map.png) |
+
+### Corrosion ground truth (`--corrosion-snapshots`)
+
+Scenario: [`internal_pipe_corrosion_default.yaml`](scenarios/internal_pipe_corrosion_default.yaml) — synthetic uniform loss + pitting (simulation truth, not UT inference).
+
+Command: `well-array-sim sim --scenario scenarios/internal_pipe_corrosion_default.yaml --corrosion-snapshots --out docs/images/corrosion`
+
+![Remaining wall thickness at T=10 yr](docs/images/corrosion_thickness_10yr.png)
+
+`bc run` also writes optional PNG previews under `outputs/<study>/plots/` (`radius_map.png`, sample waveforms) when plots are enabled.
+
+---
+
 ## Quick start
 
 ```bash
@@ -215,7 +256,15 @@ Same flags via: `well-array-sim-export` (no `export-partition` prefix).
 Seed bundles for **acoustic-ndt-platform**:
 
 ```bash
+./scripts/sync_seed_to_platform.sh
+# exports locally, verifies v0.2 manifest, copies to ../acoustic-ndt-platform/data/bundles/seed/
+```
+
+Or export only (manual copy):
+
+```bash
 ./scripts/export_seed_bundles.sh
+cp -a data/bundles/seed/* ../acoustic-ndt-platform/data/bundles/seed/
 ```
 
 ---
@@ -252,6 +301,15 @@ One **0.4 m partition × 1 year** at full grid (41 z × 360 θ ≈ 14,760 shots)
 ## Platform integration
 
 Partition bundles follow schema v1 for ingest by **acoustic-ndt-platform** (MinIO + DuckDB). Manifest field reference: [RELEASE.md](RELEASE.md#partition-bundle-manifestjson).
+
+After tagging **v0.2.0**, refresh platform seed data:
+
+```bash
+./scripts/sync_seed_to_platform.sh
+cd ../acoustic-ndt-platform
+python -m acoustic_ndt.ingest.observation_bundle --bundle-root data/bundles/seed --skip-minio
+pytest tests/test_observation_bundle_ingest.py -q
+```
 
 ---
 

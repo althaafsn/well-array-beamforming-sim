@@ -219,6 +219,21 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ---
 
+## Platform sync (post v0.2.0)
+
+Sim **v0.2.0** is tagged; refresh committed seed bundles in **acoustic-ndt-platform** separately:
+
+```bash
+./scripts/sync_seed_to_platform.sh
+cd ../acoustic-ndt-platform
+python -m acoustic_ndt.ingest.observation_bundle --bundle-root data/bundles/seed --skip-minio
+pytest tests/test_observation_bundle_ingest.py -q
+```
+
+If `data/bundles/` is owned by Docker/airflow UID 50000, the sync script retries via a one-off `docker run` to fix permissions.
+
+---
+
 ## Console scripts
 
 | Script | Alias |
