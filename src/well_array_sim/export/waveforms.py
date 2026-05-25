@@ -16,19 +16,35 @@ def build_waveforms_table(
 ) -> pa.Table:
     if scan.time_us is None or scan.p_rx is None or scan.p_tx is None:
         raise ValueError("AxialScanResult missing waveform arrays")
+    z_values = np.asarray(
+        scan.z_stations_m if z_local_m is None else z_local_m,
+        dtype=float,
+    )
+    angles_deg = np.asarray(scan.angles_deg, dtype=float)
+    p_tx = np.asarray(scan.p_tx, dtype=float)
+    p_rx = np.asarray(scan.p_rx, dtype=float)
+
+    n_z = len(z_values)
+    n_theta = len(angles_deg)
+    n_rows = n_z * n_theta
+    n_samples = int(p_tx.shape[-1] if p_tx.ndim > 1 else len(p_tx))
+
     dt_us = float(scan.time_us[1] - scan.time_us[0]) if len(scan.time_us) > 1 else 1.0
     sample_rate_hz = 1e6 / dt_us if dt_us > 0 else 0.0
     t0_us = float(scan.time_us[0])
-    rows: dict[str, list] = {col: [] for col in WAVEFORM_COLUMNS}
-    z_values = scan.z_stations_m if z_local_m is None else z_local_m
-    for iz, z_m in enumerate(z_values):
-        for it, theta_deg in enumerate(scan.angles_deg):
-            trace = scan.p_rx[iz, it]
-            rows["z_local_m"].append(float(z_m))
-            rows["theta_deg"].append(float(theta_deg))
-            rows["sample_rate_hz"].append(sample_rate_hz)
-            rows["t0_us"].append(t0_us)
-            rows["n_samples"].append(int(len(trace)))
-            rows["p_tx"].append(scan.p_tx.tolist())
-            rows["p_rx"].append(trace.tolist())
-    return pa.table(rows)
+
+    z_col = np.repeat(z_values, n_theta)
+    theta_col = np.tile(angles_deg, n_z)
+    flat_tx = np.tile(p_tx, n_rows)
+    flat_rx = p_rx.reshape(n_rows, n_samples).ravel()
+
+    columns = {
+        "z_local_m": pa.array(z_col, type=pa.float64()),
+        "theta_deg": pa.array(theta_col, type=pa.float64()),
+        "sample_rate_hz": pa.array(np.full(n_rows, sample_rate_hz), type=pa.float64()),
+        "t0_us": pa.array(np.full(n_rows, t0_us), type=pa.float64()),
+        "n_samples": pa.array(np.full(n_rows, n_samples, dtype=np.int64), type=pa.int64()),
+        "p_tx": pa.FixedSizeListArray.from_arrays(flat_tx, n_samples),
+        "p_rx": pa.FixedSizeListArray.from_arrays(flat_rx, n_samples),
+    }
+    return pa.table([columns[name] for name in WAVEFORM_COLUMNS], names=WAVEFORM_COLUMNS)

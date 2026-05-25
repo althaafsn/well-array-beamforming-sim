@@ -21,6 +21,9 @@ build/
 *.pyd
 *.dylib
 
+# Rust build artifacts
+rust/**/target/
+
 # --- Local secrets ---
 .env
 
@@ -29,10 +32,11 @@ outputs/*
 !outputs/.gitkeep
 data/bundles/seed/*
 !data/bundles/seed/.gitkeep
+data/bundles/progression_1987/*
+!data/bundles/progression_1987/.gitkeep
 
-# --- Future Rust branch (local only; not part of this Python repo) ---
-rust/
-scripts/build_rust.sh
+# Local agent planning notes (not part of the release)
+docs/superpowers/
 
 # --- Editor / OS ---
 .vscode/

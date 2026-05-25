@@ -137,6 +137,7 @@ def run_segment_study(
     max_partitions: int | None = None,
     z_step_m: float | None = None,
     angle_step_deg: float | None = None,
+    workers: int = 1,
     plot_waveforms: bool = True,
     max_plot_partitions: int = 1,
     sample_z_m: float = 0.0,
@@ -179,6 +180,7 @@ def run_segment_study(
         out_root=out_root / "bundles",
         z_step_m=resolved_z_step_m,
         angle_step_deg=resolved_angle_step_deg,
+        workers=int(workers),
     )
 
     plot_paths: list[Path] = []

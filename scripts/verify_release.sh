@@ -1,16 +1,31 @@
 #!/usr/bin/env bash
 # Pre-release verification: tests + smoke bc run + bundle artifact checks.
+# Optional: ./scripts/verify_release.sh --with-rust
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+
+WITH_RUST=0
+if [[ "${1:-}" == "--with-rust" ]]; then
+  WITH_RUST=1
+fi
 
 if [[ -f .venv/bin/activate ]]; then
   # shellcheck disable=SC1091
   source .venv/bin/activate
 fi
 
+if [[ "$WITH_RUST" == "1" ]]; then
+  echo "==> build Rust extension"
+  ./scripts/build_rust.sh
+  export WELL_ARRAY_SIM_USE_RUST=1
+fi
+
 echo "==> pytest"
 python -m pytest -q
+if [[ "$WITH_RUST" == "1" ]]; then
+  python -m pytest tests/internal/test_rust_parity.py -q
+fi
 
 SMOKE="$ROOT/outputs/smoke"
 rm -rf "$SMOKE"
@@ -88,3 +103,6 @@ print("manifest.json OK (v0.2.0, angular_saft, ray_packet_pulse_echo)")
 PY
 
 echo "==> release verification passed"
+if [[ "$WITH_RUST" == "1" ]]; then
+  echo "==> rust backend enabled for smoke export"
+fi

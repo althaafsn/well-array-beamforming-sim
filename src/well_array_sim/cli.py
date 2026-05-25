@@ -35,15 +35,6 @@ from well_array_sim.export.bundle import (
 )
 from well_array_sim.export.partitions import partition_plan
 from well_array_sim.export.schema import DEFAULT_AXIAL_LENGTH_M
-from well_array_sim.segment_study import run_segment_study, print_study_report
-from well_array_sim.internal.visualize import (
-    plot_axial_scan_exports,
-    plot_corrosion_exports,
-    plot_packet_scene,
-    plot_pulse_echo,
-    plot_matched_filter_profile,
-    save_pulse_echo_npz,
-)
 
 
 CLI_DESCRIPTION = (
@@ -88,6 +79,7 @@ def _run_export_partition(args: argparse.Namespace) -> None:
         "z_step_m": args.z_step_m,
         "angle_step_deg": args.angle_step_deg,
     }
+    workers = int(args.workers)
 
     if args.all_partitions:
         scenario = load_internal_scenario(args.scenario)
@@ -101,6 +93,7 @@ def _run_export_partition(args: argparse.Namespace) -> None:
             **export_kwargs,
             partitions=partitions,
             years=year_list,
+            workers=workers,
         )
         for path in paths:
             print(path)
@@ -183,6 +176,21 @@ def _add_export_partition_arguments(export_parser: argparse.ArgumentParser) -> N
         help="Azimuth step for 360° sweep (default: scenario scan.angle_step_deg)",
     )
     export_parser.add_argument("--run-id", type=str, default="")
+    export_parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Parallel partition exports when using --all-partitions (default: 1)",
+    )
+
+
+def _add_workers_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Parallel partition exports (default: 1)",
+    )
 
 
 def _build_export_partition_parser() -> argparse.ArgumentParser:
@@ -230,6 +238,13 @@ def _run_single_angle(
     show_inferred: bool,
     corrosion_year_yr: float | None = None,
 ) -> None:
+    from well_array_sim.internal.visualize import (
+        plot_matched_filter_profile,
+        plot_packet_scene,
+        plot_pulse_echo,
+        save_pulse_echo_npz,
+    )
+
     theta_rad = math.radians(angle_deg)
     result = simulate_pulse_echo_2d(
         scenario.pipe,
@@ -284,6 +299,8 @@ def _run_axial_scan(
     show_inferred: bool,
     corrosion_year_yr: float | None = None,
 ) -> None:
+    from well_array_sim.internal.visualize import plot_axial_scan_exports
+
     resolved_angle_step = scenario.angle_step_deg if angle_step_deg is None else angle_step_deg
     scan = simulate_axial_scan(
         scenario.pipe,
@@ -316,6 +333,8 @@ def _run_axial_scan(
 
 
 def _run_corrosion_snapshots(scenario, out: Path) -> None:
+    from well_array_sim.internal.visualize import plot_corrosion_exports
+
     if not scenario.has_corrosion():
         raise SystemExit("Scenario has no corrosion: block; cannot export snapshots")
     engine = scenario.build_corrosion_engine()
@@ -372,6 +391,8 @@ def _run_bc_show(args: argparse.Namespace) -> None:
 
 
 def _run_bc_run(args: argparse.Namespace) -> None:
+    from well_array_sim.segment_study import print_study_report, run_segment_study
+
     years = None
     if args.years:
         years = [int(y.strip()) for y in args.years.split(",") if y.strip()]
@@ -386,6 +407,7 @@ def _run_bc_run(args: argparse.Namespace) -> None:
         max_partitions=args.max_partitions,
         z_step_m=args.z_step_m,
         angle_step_deg=args.angle_step_deg,
+        workers=args.workers,
         plot_waveforms=not args.no_plots,
         max_plot_partitions=0 if args.no_plots else args.max_plot_partitions,
         sample_z_m=args.sample_z_m,
@@ -511,6 +533,7 @@ def _add_bc_parser(subparsers: argparse._SubParsersAction) -> None:
         default=None,
         help="Azimuth step for 360° sweep (default: scenario scan.angle_step_deg)",
     )
+    _add_workers_argument(run)
     run.add_argument("--no-plots", action="store_true", help="Skip PNG previews (bundles still include waveforms)")
     run.add_argument(
         "--max-plot-partitions",

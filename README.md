@@ -302,13 +302,37 @@ One **0.4 m partition × 1 year** at full grid (41 z × 360 θ ≈ 14,760 shots)
 
 Partition bundles follow schema v1 for ingest by **acoustic-ndt-platform** (MinIO + DuckDB). Manifest field reference: [RELEASE.md](RELEASE.md#partition-bundle-manifestjson).
 
-After tagging **v0.2.0**, refresh platform seed data:
+**Platform spawn expects sim installed in this repo's `.venv`.** The platform runs:
+
+```text
+well-array-beamforming-sim/.venv/bin/python -m well_array_sim.cli export-partition ...
+```
+
+—not the platform Python interpreter. Verify from the platform repo:
+
+```bash
+cd ../acoustic-ndt-platform
+./scripts/check_sim_integration.sh
+```
+
+Optional override: set `sim_python_path` in `configs/datasets/partition_observation.yaml` or env `WELL_ARRAY_SIM_PYTHON`.
+
+**Seed sync (Path B — no live sim export):**
 
 ```bash
 ./scripts/sync_seed_to_platform.sh
 cd ../acoustic-ndt-platform
 python -m acoustic_ndt.ingest.observation_bundle --bundle-root data/bundles/seed --skip-minio
 pytest tests/test_observation_bundle_ingest.py -q
+```
+
+**On-demand export + ingest (Path A):**
+
+```bash
+cd ../acoustic-ndt-platform
+./scripts/check_sim_integration.sh
+python -m acoustic_ndt.spawn.request_partition_observation \
+  --segment-id 1987 --observation-year 5 --partition-index 0 --skip-minio
 ```
 
 ---
@@ -363,11 +387,40 @@ Single-angle CLI (`well-array-sim sim`) and GUI **Single** mode use **matched-fi
 pytest -q
 ```
 
+### Optional Rust backend (export acceleration)
+
+Build the native extension and run parity tests:
+
+```bash
+pip install -e ".[dev,rust]"
+./scripts/build_rust.sh
+WELL_ARRAY_SIM_USE_RUST=1 pytest tests/internal/test_rust_parity.py -q
+```
+
+Export with Rust enabled:
+
+```bash
+export WELL_ARRAY_SIM_USE_RUST=1
+well-array-sim export-partition --scenario scenarios/internal_pipe_corrosion_default.yaml \
+  --segment-id bench --observation-year 0 --out-root outputs/bench
+```
+
+See [RELEASE.md](RELEASE.md#optional-rust-export-backend) for benchmarks and verification.
+
+**Export speedups** (same branch): Rust Phase 2 kernel (~3 s/bundle at 41×360), vectorized waveform parquet build, and optional parallel partitions:
+
+```bash
+export WELL_ARRAY_SIM_USE_RUST=1
+well-array-sim bc run --permit-id 13 --years 0 --max-length-m 40 --workers 4 --no-plots
+```
+
+Disable in-kernel z-parallelism for debugging: `WELL_ARRAY_SIM_RUST_PARALLEL=0`.
+
 ---
 
 ## Release v0.2.0
 
-**Status:** ready to tag after `./scripts/verify_release.sh` passes (97 tests + smoke export).
+**Status:** ready to tag after `./scripts/verify_release.sh` passes (full pytest suite + smoke export).
 
 Pre-tag verification (tests + smoke export + manifest checks):
 
@@ -382,6 +435,15 @@ Optional: regenerate local seed bundles for platform ingest:
 ./scripts/export_seed_bundles.sh
 # copies to ../acoustic-ndt-platform/data/bundles/seed/ if needed
 ```
+
+Optional: export a **localized corrosion progression** demo (segment 1987, years 0–10) for the map viewer:
+
+```bash
+./scripts/export_progression_1987.sh
+rsync -a data/bundles/progression_1987/ ../acoustic-ndt-platform/data/bundles/progression_1987/
+```
+
+The script patches the BC scenario with a `corrosion.hotspot` band at `z_center_m: 0.2` so pitting breaks one UT section before the rest of the 0.4 m window.
 
 Tag when verification passes — full steps in [RELEASE.md](RELEASE.md#release-checklist-v020).
 

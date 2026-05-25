@@ -82,6 +82,26 @@ def simulate_axial_scan(
     if len(z_list) == 0:
         raise ValueError("z_stations must contain at least one point")
 
+    from well_array_sim.internal._rust_backend import rust_enabled, simulate_axial_scan_rust
+
+    if rust_enabled():
+        rust_result = simulate_axial_scan_rust(
+            pipe,
+            fluid,
+            steel,
+            transducer,
+            timing,
+            z_list,
+            angle_step_deg=angle_step_deg,
+            z_step_m=z_step_m,
+            wall_profile=wall_profile,
+            echo=echo,
+            inference=inference,
+            store_waveforms=store_waveforms,
+        )
+        if rust_result is not None:
+            return rust_result
+
     angles_deg = np.arange(0.0, 360.0, angle_step_deg, dtype=float)
     n_z = len(z_list)
     n_theta = len(angles_deg)

@@ -12,6 +12,15 @@ class DistributionParams:
 
 
 @dataclass(frozen=True)
+class HotspotConfig:
+    """Optional axial band where pitting is concentrated (simulates localized defect)."""
+
+    z_center_m: float
+    z_half_width_m: float
+    pit_lambda_multiplier: float = 50.0
+
+
+@dataclass(frozen=True)
 class CorrosionConfig:
     """Corrosion engine parameters (internal units: metres, years)."""
 
@@ -24,6 +33,7 @@ class CorrosionConfig:
     seed: int
     lognormal_k: DistributionParams
     normal_n: DistributionParams
+    hotspot: HotspotConfig | None = None
 
     @property
     def v_corr_mm_per_yr(self) -> float:
@@ -84,6 +94,15 @@ def parse_corrosion_config(raw: dict[str, Any] | None) -> CorrosionConfig | None
     if not isinstance(snapshots, (list, tuple)):
         snapshots = [0.0, 2.0, 5.0, 10.0]
 
+    hotspot_raw = block.get("hotspot")
+    hotspot: HotspotConfig | None = None
+    if isinstance(hotspot_raw, dict):
+        hotspot = HotspotConfig(
+            z_center_m=float(hotspot_raw.get("z_center_m", 0.2)),
+            z_half_width_m=float(hotspot_raw.get("z_half_width_m", 0.05)),
+            pit_lambda_multiplier=float(hotspot_raw.get("pit_lambda_multiplier", 50.0)),
+        )
+
     return CorrosionConfig(
         v_corr_m_per_yr=float(block.get("V_corr_mm_per_yr", 0.05)) * 1e-3,
         pit_lambda_per_m2_yr=float(block.get("pit_lambda_per_m2_yr", 10.0)),
@@ -94,4 +113,5 @@ def parse_corrosion_config(raw: dict[str, Any] | None) -> CorrosionConfig | None
         seed=int(block.get("seed", 42)),
         lognormal_k=_lognormal_k_params(),
         normal_n=_dist("normal_n", 0.5, 0.05),
+        hotspot=hotspot,
     )

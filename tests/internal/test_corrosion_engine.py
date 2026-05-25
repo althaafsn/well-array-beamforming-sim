@@ -6,7 +6,12 @@ import numpy as np
 import pytest
 
 from well_array_sim.internal import load_internal_scenario, simulate_pulse_echo_2d
-from well_array_sim.internal.corrosion.config import CorrosionConfig, DistributionParams
+from well_array_sim.internal.corrosion.config import (
+    CorrosionConfig,
+    DistributionParams,
+    HotspotConfig,
+    parse_corrosion_config,
+)
 from well_array_sim.internal.corrosion.engine import CorrosionEngine
 from well_array_sim.internal.corrosion.pitting import Pit, localized_loss_m, pit_depth_m, pit_radius_m
 from well_array_sim.internal.corrosion.point_cloud import build_pipe_wall_point_cloud
@@ -175,6 +180,48 @@ def test_acoustic_gt_moves_with_corrosion(corrosion_scenario) -> None:
         inference=corrosion_scenario.inference,
     )
     assert r5.ground_truth_distance_m > r0.ground_truth_distance_m
+
+
+def test_parse_hotspot_config() -> None:
+    cfg = parse_corrosion_config(
+        {
+            "corrosion": {
+                "hotspot": {
+                    "z_center_m": 0.2,
+                    "z_half_width_m": 0.04,
+                    "pit_lambda_multiplier": 100.0,
+                }
+            }
+        }
+    )
+    assert cfg is not None
+    assert cfg.hotspot is not None
+    assert cfg.hotspot.z_center_m == pytest.approx(0.2)
+    assert cfg.hotspot.z_half_width_m == pytest.approx(0.04)
+    assert cfg.hotspot.pit_lambda_multiplier == pytest.approx(100.0)
+
+
+def test_hotspot_concentrates_pits_in_axial_band() -> None:
+    scenario = load_internal_scenario("scenarios/internal_pipe_corrosion_default.yaml")
+    cfg = CorrosionConfig(
+        v_corr_m_per_yr=0.0,
+        pit_lambda_per_m2_yr=80.0,
+        pit_alpha=3.0,
+        dt_yr=0.5,
+        t_end_yr=2.0,
+        snapshot_years=(0.0,),
+        seed=4242,
+        lognormal_k=DistributionParams(0.4, 0.1),
+        normal_n=DistributionParams(0.5, 0.05),
+        hotspot=HotspotConfig(z_center_m=0.2, z_half_width_m=0.04, pit_lambda_multiplier=100.0),
+    )
+    engine = CorrosionEngine.from_pipe3d(scenario.pipe_3d, cfg)
+    engine.run_to(2.0)
+    assert len(engine.pits) > 0
+    z_vals = engine.cloud.z_m
+    for pit in engine.pits:
+        z = float(z_vals[pit.center_index])
+        assert abs(z - 0.2) <= 0.04 + 1e-9
 
 
 def test_default_corrosion_params_are_mm_scale() -> None:

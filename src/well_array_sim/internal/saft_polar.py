@@ -118,6 +118,7 @@ def polar_saft_focus_image(
     *,
     beam_width_deg: float,
     coherent_sum: bool = True,
+    corrs: np.ndarray | None = None,
 ) -> np.ndarray:
     """
     Build polar focus image I(r, φ) by angular SAFT migration.
@@ -139,7 +140,8 @@ def polar_saft_focus_image(
 
     dt_s = _sample_dt_s(time_s)
     template_offset = len(p_template) - 1
-    corrs = _correlation_profiles(p_rx, p_template)
+    if corrs is None:
+        corrs = _correlation_profiles(p_rx, p_template)
     lags = _lag_window(r_grid_m, fluid_vp, dt_s, n_rx=n_rx)
     weights = angular_apodization_weights(
         angles_deg,
@@ -265,5 +267,6 @@ def infer_axial_slice_saft(
         fluid_vp,
         beam_width_deg=inference.angular_window_deg,
         coherent_sum=inference.coherent_sum,
+        corrs=corrs,
     )
     return inferred, focus

@@ -80,17 +80,40 @@ class CorrosionEngine:
         self.cloud.pit_loss_m = pit_loss
         self._sync_metal_loss()
 
+    def _spawn_pool_indices(self) -> np.ndarray:
+        cfg = self.config
+        n_pts = self.cloud.n_points
+        if cfg.hotspot is None:
+            return np.arange(n_pts, dtype=int)
+        hs = cfg.hotspot
+        z = self.cloud.z_m
+        mask = np.abs(z - hs.z_center_m) <= hs.z_half_width_m
+        indices = np.where(mask)[0]
+        if indices.size == 0:
+            return np.arange(n_pts, dtype=int)
+        return indices.astype(int)
+
+    def _expected_new_pits(self, dt_yr: float) -> float:
+        cfg = self.config
+        pool = self._spawn_pool_indices()
+        n_pts = self.cloud.n_points
+        base = cfg.pit_lambda_per_m2_yr * self.surface_area_m2() * dt_yr
+        if cfg.hotspot is None:
+            return base
+        frac = pool.size / max(n_pts, 1)
+        return base * frac * cfg.hotspot.pit_lambda_multiplier
+
     def _spawn_pits(self, n_new: int) -> None:
         if n_new <= 0:
             return
         rng = self._rng
         assert rng is not None
         cfg = self.config
-        n_pts = self.cloud.n_points
-        if n_new >= n_pts:
-            indices = np.arange(n_pts, dtype=int)
+        pool = self._spawn_pool_indices()
+        if n_new >= pool.size:
+            indices = pool
         else:
-            indices = rng.choice(n_pts, size=n_new, replace=False)
+            indices = rng.choice(pool, size=n_new, replace=False)
         for idx in indices:
             self.pits.append(
                 Pit(
@@ -111,7 +134,7 @@ class CorrosionEngine:
 
         self.cloud.uniform_loss_m += cfg.v_corr_m_per_yr * dt_yr
 
-        expected = cfg.pit_lambda_per_m2_yr * self.surface_area_m2() * dt_yr
+        expected = self._expected_new_pits(dt_yr)
         n_new = int(rng.poisson(expected))
         self._spawn_pits(n_new)
 

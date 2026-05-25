@@ -42,7 +42,7 @@ well-array-sim export-partition \
   --scenario scenarios/internal_pipe_corrosion_default.yaml \
   --segment-id bench \
   --observation-year 0 \
-  --out-root /tmp/bench
+  --out-root outputs/bench
 # expect ~80 s at default 1 cm × 1° grid
 ```
 
@@ -150,6 +150,7 @@ Written only by **`bc run`**, at the end of a successful run. **Not ingested by 
 | Partition length | `0.40` m | `--partition-length-m` |
 | `bc run` sim window | `40` m | `--max-length-m` |
 | Corrosion snapshot years | `[0, 2, 5, 10]` | Override with `bc run --years` |
+| Localized pitting hotspot | — | Optional `corrosion.hotspot` (`z_center_m`, `z_half_width_m`, `pit_lambda_multiplier`); see `scripts/export_progression_1987.sh` |
 
 Pipe OD/wall/SMYS for BC segments come from **line type category** (Transmission → 762 mm OD, 13 mm wall), not individual GeoJSON row fields.
 
@@ -164,6 +165,59 @@ Pipe OD/wall/SMYS for BC segments come from **line type category** (Transmission
 - **No integrity alerts** in export — analysis belongs in the platform
 - **Single-threaded** export loop
 - **Angular SAFT only** — stitches monostatic shots in angle; not multi-element linear array beamforming (future work)
+- **Optional Rust backend** (`feat/rust-export-kernel`) — accelerates axial scan; off by default until explicitly enabled
+
+---
+
+## Optional Rust export backend
+
+Branch `feat/rust-export-kernel` adds a PyO3 extension (`well_array_sim_core`) that fuses ray-packet forward + angular SAFT for partition export. Python remains the orchestrator (YAML, corrosion, parquet schema v1.0.0).
+
+**Build** (requires Rust toolchain + maturin):
+
+```bash
+pip install -e ".[dev,rust]"
+./scripts/build_rust.sh
+```
+
+**Enable** for export / `bc run`:
+
+```bash
+export WELL_ARRAY_SIM_USE_RUST=1
+well-array-sim export-partition --scenario scenarios/internal_pipe_corrosion_default.yaml \
+  --segment-id bench --observation-year 0 --out-root outputs/bench
+```
+
+**Benchmark** (one full-resolution bundle, 41×360 grid):
+
+```bash
+./scripts/benchmark_export.sh
+```
+
+**Verify** (optional gate):
+
+```bash
+./scripts/verify_release.sh --with-rust
+```
+
+Example benchmark (HP OMEN class laptop, corrosion default scenario, 41×360 grid): Python ~83–90 s → Rust **~3 s** per bundle (~30×). Phase 2 Rust kernel (FFT SAFT + Rayon over z + release LTO) supersedes earlier ~10–14 s figures.
+
+Set `WELL_ARRAY_SIM_RUST_PARALLEL=0` to force serial z-loop (debug parity).
+
+Parity tests: `tests/internal/test_rust_parity.py`, `tests/internal/test_rust_correlation.py`, `tests/internal/test_rust_noise_parity.py`.
+
+### Parallel partition export
+
+Use `--workers N` on `bc run` and `export-partition --all-partitions` to export multiple `(partition, year)` bundles in parallel (default `1` = unchanged behavior):
+
+```bash
+export WELL_ARRAY_SIM_USE_RUST=1
+well-array-sim bc run --permit-id 13 --years 0,2,5,10 --max-length-m 40 --workers 4
+```
+
+**Memory:** each worker holds a full waveform buffer (~140 MB at default 41×360 grid). Rule of thumb: `workers ≤ floor(available_RAM_GiB / 0.5)`.
+
+Benchmark parallel plan (4 coarse partitions): `BENCH_WORKERS=4 ./scripts/benchmark_export.sh`
 
 ---
 
@@ -174,7 +228,7 @@ Pipe OD/wall/SMYS for BC segments come from **line type category** (Transmission
 
 ```bash
 pip install -e ".[dev]"
-pytest -q    # 97 tests
+pytest -q    # 102 tests (includes optional Rust parity when extension built)
 ```
 
 Test coverage: ray forward, angular SAFT / matched-filter inference, corrosion, partition export, BC pipelines, segment study, CLI smoke tests.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -149,6 +150,11 @@ def export_partition_observation_bundle(
     return bundle_dir
 
 
+def _export_one_partition_task(task: dict) -> Path:
+    """Picklable worker entry point for parallel export."""
+    return export_partition_observation_bundle(**task)
+
+
 def export_partition_years(
     *,
     scenario_path: Path | str,
@@ -180,24 +186,31 @@ def export_partition_plan(
     out_root: Path | str,
     z_step_m: float | None = None,
     angle_step_deg: float | None = None,
+    workers: int = 1,
 ) -> list[Path]:
     """Export every partition in ``partitions`` for each observation year."""
     segment_id = str(segment_id)
-    bundle_dirs: list[Path] = []
+    tasks: list[dict] = []
     for year in years:
         for partition in partitions:
-            bundle_dirs.append(
-                export_partition_observation_bundle(
-                    scenario_path=scenario_path,
-                    segment_id=segment_id,
-                    observation_year=int(year),
-                    out_root=out_root,
-                    partition_index=partition.partition_index,
-                    chainage_start_m=partition.chainage_start_m,
-                    axial_length_m=partition.axial_length_m,
-                    z_step_m=z_step_m,
-                    angle_step_deg=angle_step_deg,
-                    run_id=f"{segment_id}@p{partition.partition_index:04d}_y{year}",
-                )
+            tasks.append(
+                {
+                    "scenario_path": scenario_path,
+                    "segment_id": segment_id,
+                    "observation_year": int(year),
+                    "out_root": out_root,
+                    "partition_index": partition.partition_index,
+                    "chainage_start_m": partition.chainage_start_m,
+                    "axial_length_m": partition.axial_length_m,
+                    "z_step_m": z_step_m,
+                    "angle_step_deg": angle_step_deg,
+                    "run_id": f"{segment_id}@p{partition.partition_index:04d}_y{year}",
+                }
             )
-    return bundle_dirs
+
+    if workers <= 1 or len(tasks) <= 1:
+        return [_export_one_partition_task(task) for task in tasks]
+
+    max_workers = min(int(workers), len(tasks))
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        return list(executor.map(_export_one_partition_task, tasks))
