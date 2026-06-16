@@ -4,6 +4,19 @@ All notable changes to **well-array-beamforming-sim** are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **`waveform_2d` package** — 2D FDTD wave engine for ultrasonic NDT:
+  - `main.py` — leapfrog displacement solver (Langtangen & Linge)
+  - `acoustic_pml.py` — velocity–stress FDTD + split-field PML, pulse-echo A-scans
+  - `live_sim.py` — interactive scenes, drawable geometry (blocks, rings, pipe cross-section)
+  - `webapp/` — FastAPI WebSocket server + Pyodide static demo (AWS S3/CloudFront)
+- CLI entry points: `waveform-2d-demo`, `waveform-2d-pml`, `waveform-2d-web`
+- Tests: `tests/test_waveform_2d.py`
+- Deploy script: `scripts/deploy_waveform_pyodide.sh`
+
 ## [0.2.0] - 2026-05-22
 
 ### Added

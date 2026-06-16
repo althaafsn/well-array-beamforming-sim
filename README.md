@@ -11,6 +11,7 @@ Python simulator for **internal** fluid-filled pipe pulse-echo NDT: a rotating m
 | Layer | What happens | Where it lives |
 |-------|----------------|----------------|
 | **Forward physics** | Ray-packet pulse-echo: TX pulse → fluid path → wall echo → RX waveform | `internal/ray_forward.py` |
+| **Wave engine (FDTD)** | 2D acoustic FDTD: pulse-echo, pipe geometry, PML, live browser demo | [`src/waveform_2d/`](src/waveform_2d/) |
 | **Blind inference** | Estimate wall distance from RX alone (no access to true wall shape) | `internal/imaging.py`, `internal/saft_polar.py` |
 | **Ground truth** | True inner wall geometry (uniform, wavy, or corrosion-evolved) | scenario YAML, `internal/corrosion/` |
 | **Pipeline study** | Map a real BC pipeline segment → simulate a short window → export bundles | `bc run`, `export-partition` |
@@ -69,6 +70,19 @@ well-array-sim-gui                                 # interactive explorer
 ```
 
 Install first if needed — see [Install](#install) below.
+
+### Waveform 2D engine (FDTD)
+
+Full 2D wave-equation solvers for ultrasonic pulse-echo through pipe geometry (steel annulus, corrosion pits, PML boundaries). Includes a **live browser demo** (Pyodide on AWS CloudFront).
+
+```bash
+python -m waveform_2d.main              # leapfrog demo + quadratic verification
+python -m waveform_2d.acoustic_pml      # pulse-echo A-scan with PML
+waveform-2d-web                         # WebSocket visualizer (needs pip install -e ".[web]")
+./scripts/deploy_waveform_pyodide.sh    # push static demo to S3/CloudFront
+```
+
+Docs: [`src/waveform_2d/README.md`](src/waveform_2d/README.md) · Live demo: https://d1w9ll79m0xnql.cloudfront.net/
 
 ---
 
