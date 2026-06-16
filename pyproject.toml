@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
 rust = ["maturin>=1.4"]
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.27"]
 
 [tool.maturin]
 manifest-path = "rust/well_array_sim_core/Cargo.toml"
@@ -29,6 +30,9 @@ well-array-sim = "well_array_sim.cli:main"
 well-array-sim-gui = "well_array_sim.gui:main"
 well-array-sim-om = "well_array_sim.om_gui:main"
 well-array-sim-export = "well_array_sim.cli:main_export_partition"
+waveform-2d-web = "waveform_2d.webapp.server:run"
+waveform-2d-demo = "waveform_2d.main:main"
+waveform-2d-pml = "waveform_2d.acoustic_pml:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
